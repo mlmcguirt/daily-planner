@@ -30,11 +30,19 @@ export function DateHeader({ date, onDateChange }) {
             type="button"
             data-idx={i}
             aria-label={`Go to ${FULL_DAYS[i]} of this week`}
+            // The day you're on, said out loud rather than only drawn. A screen reader now
+            // announces it, and the tests can ask which day is current without knowing what
+            // it happens to look like this week.
+            aria-current={i === active ? "date" : undefined}
             title={FULL_DAYS[i]}
             disabled={!usable}
             onClick={() => usable && onDateChange(shiftDate(date, i - active))}
-            class={`flex h-[34px] w-[34px] items-center justify-center rounded-lg border-0 text-lg ${
-              i === active ? "bg-ink text-white" : "bg-transparent text-ink hover:bg-stripe"
+            // The day you're on is BOLD. It used to be a black box with a white letter —
+            // a filled chip sitting on the paper, the heaviest mark on the whole sheet, for
+            // something that is just "you are here". Weight says the same thing in the
+            // page's own voice, and says it more quietly.
+            class={`flex h-[34px] w-[34px] items-center justify-center rounded-lg border-0 bg-transparent text-lg text-ink hover:bg-stripe ${
+              i === active ? "font-bold" : "font-normal"
             } ${usable ? "cursor-pointer" : "cursor-default opacity-40"}`}
           >
             {label}

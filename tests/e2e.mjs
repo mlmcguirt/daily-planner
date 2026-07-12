@@ -274,7 +274,7 @@ check("arrows: and loads its entries",
 
 check("arrows: the weekday marker follows",
   await page.evaluate(() => {
-    const active = [...document.querySelectorAll(".days button[data-idx]")].findIndex(b => b.className.includes("bg-ink"));
+    const active = [...document.querySelectorAll(".days button[data-idx]")].findIndex(b => b.getAttribute("aria-current") === "date");
     return active === 0;                       // 2026-06-01 is a Monday
   }));
 
@@ -807,7 +807,7 @@ check("weekdays: and loads that day",
 
 check("weekdays: the clicked day is the one marked active",
   await page.evaluate(() =>
-    [...document.querySelectorAll(".days button[data-idx]")].findIndex(b => b.className.includes("bg-ink")) === 6));
+    [...document.querySelectorAll(".days button[data-idx]")].findIndex(b => b.getAttribute("aria-current") === "date") === 6));
 
 // A week that straddles a month boundary: Mon 30 Nov 2026 .. Sun 6 Dec 2026.
 await setDate(page, "2026-12-02");             // Wednesday 2 Dec
@@ -838,7 +838,7 @@ check("weeks: and loads that day",
   (await page.inputValue('textarea[data-key="morning"]')) === "the next Wednesday");
 check("weeks: the marker still says Wednesday",
   await page.evaluate(() =>
-    [...document.querySelectorAll(".days button[data-idx]")].findIndex(b => b.className.includes("bg-ink")) === 2));
+    [...document.querySelectorAll(".days button[data-idx]")].findIndex(b => b.getAttribute("aria-current") === "date") === 2));
 
 await page.click("#prevWeek");
 await page.waitForTimeout(1500);
