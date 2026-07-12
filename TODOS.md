@@ -81,15 +81,58 @@ the public-release branch — fold this in there if the file is already open.
 
 ---
 
-## Design debt: accessibility, touch, and trust (one branch, do it together)
+## ~~Design debt: accessibility, touch, and trust~~ — DONE
 
-From a full design review on 2026-07-12. The **aesthetic scored 10/10** and is not in
-question — zero AI slop, every litmus check passes. All five items below are in the
-layers around it. Two sibling fixes (the mobile toolbar and a visible affordance for
-recurring items) ship with the public release instead, because they change what a
-stranger sees in the demo.
+**Fixed by /design-review on `design-debt`, 2026-07-12.** All five items below were
+confirmed in a real browser (not inferred from source) and fixed. 128/128 e2e, 19/19 demo.
 
-Do these as one branch, after the release, with `npm run test:e2e` green.
+The live audit also found **two things source review had missed entirely**:
+
+- **The mobile layout was broken, not merely imperfect.** `Sheet.jsx` had an inline
+  `flex` on each block sitting next to a `max-md:flex-none` class. Inline wins, so the
+  mobile rule had *never applied*: at 390px the four time blocks collapsed to **16px each**
+  (just the `<h2>`) and their 120px textareas spilled out and rendered on top of one
+  another. An unreadable smear, on the platform this planner mostly lives on. Same bug,
+  same file, twice — the sheet's inline `height` defeated `max-md:h-auto` too.
+- **The passphrase gate looked like a void.** `App()` renders the gate *instead of* the
+  planner, so nothing is behind it — yet it carried a `bg-black/35` scrim, darkening an
+  empty cream page into a muddy mauve. Fixed, and its copy now says there is no password
+  reset.
+
+**One item was attempted and could not be delivered — see below.**
+
+---
+
+## Short viewports still clip the last checklist row
+
+**What:** At 1280x720 (a very common laptop) the 17 checklist rows need 514px and the
+container gives 488px, so the last row is sliced in half by the sheet's edge. It reads as
+a rendering bug rather than as "scroll for more" — there is no visible scrollbar.
+
+**Why it isn't fixed:** The agreed fix was `min-height: fit-content` on `.sheet`, so the
+sheet would grow and the page would scroll instead of clipping. **It does nothing.**
+`#todo-list` is an `overflow-y-auto` scroll container, and a scroll container's content
+never propagates a size to its parent — so `fit-content` resolves small and the sheet
+stays put. Verified in the browser, not assumed.
+
+Delivering it means removing the checklist's internal scroll, which is precisely what
+lets 17 rows shrink to fit one screen at normal heights. Removing it made the page scroll
+at 900px and broke two e2e checks (`sheet fits one screen`, `cream border even on all
+sides`). Reverted.
+
+**Options for whoever picks this up:**
+- Give the list a visible scroll affordance (a fade at the bottom edge, or a real
+  scrollbar) so the half-row reads as "more below" rather than as clipping. Cheapest, and
+  it fixes the *perception*, which is the actual complaint.
+- Restructure so the sheet, not the list, owns the overflow. Bigger, and it puts the
+  "fits one screen" design intent at risk — that intent is what the print layout mirrors.
+
+**Do NOT** just set `min-height: fit-content` and assume it worked. It builds, it changes
+nothing, and it looks like a fix in the diff.
+
+---
+
+## ~~Original design-debt list (all fixed)~~
 
 **1. Focus is invisible across the entire sheet.** `Sheet.jsx:23` and `Sheet.jsx:110`
 both set `outline-none` with no replacement, and the to-do row's bottom border is
