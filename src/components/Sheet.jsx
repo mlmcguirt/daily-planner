@@ -88,6 +88,23 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu }) 
     }
   };
 
+  // Enter goes down a line, because this is a list and that is what a list does.
+  //
+  // Each row is its own <input>, so Enter did nothing at all — you had to reach for the
+  // mouse, or Tab past the grip and the tick to get to the next line. On paper you just
+  // keep writing.
+  //
+  // Caret lands at the END of whatever is already on the next line, not at the start:
+  // you are continuing down the list, not editing what is already there.
+  const onTextKeyDown = (i, e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();                          // never submit anything, never insert a newline
+    const next = listRef.current?.children[i + 1]?.querySelector("input[type=text]");
+    if (!next) return;                           // last row: stay put rather than wrap
+    next.focus();
+    next.setSelectionRange(next.value.length, next.value.length);
+  };
+
   return (
     <div class="min-h-0 rounded-md">
       <ul ref={listRef} id="todo-list" class="m-0 flex h-full list-none flex-col overflow-y-auto p-0 max-md:overflow-visible">
@@ -117,6 +134,7 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu }) 
               type="text"
               value={t.text}
               onInput={e => onText(i, e.currentTarget.value)}
+              onKeyDown={e => onTextKeyDown(i, e)}
               onSelect={e => onSelect({ kind: "todo", index: i }, e.currentTarget)}
               // The text colour is EITHER ink OR faded — never both classes at once.
               // Stacking `text-ink` and `text-faded` leaves the winner to Tailwind's

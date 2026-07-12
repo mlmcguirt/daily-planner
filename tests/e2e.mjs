@@ -875,7 +875,46 @@ await page.waitForTimeout(2000);
 check("failure: Retry saves once the server is back",
   (await api.get("2026-10-01")).data?.blocks?.morning === "server is broken");
 
-// ---------- 23. search ----------
+// ---------- 23. Enter goes down a line ----------
+// Each to-do row is its own <input>, so Enter used to do nothing at all — you had to
+// reach for the mouse to keep writing. On paper you just carry on down the list.
+// A date no other test touches — 2026-04-06 already has "Keep me" on row 2 from the
+// recurring tests, and typing into it appended rather than replaced.
+await setDate(page, "2026-10-20");
+await page.waitForTimeout(1200);
+
+const rowInput = n => `#todo-list li:nth-child(${n}) input[type=text]`;
+const focusedIndex = () => page.evaluate(() =>
+  [...document.querySelectorAll("#todo-list li input[type=text]")].indexOf(document.activeElement));
+
+await page.click(rowInput(1));
+await page.keyboard.type("milk");
+await page.keyboard.press("Enter");
+check("enter: moves to the next row", (await focusedIndex()) === 1, String(await focusedIndex()));
+
+await page.keyboard.type("bread");
+await page.keyboard.press("Enter");
+await page.keyboard.type("eggs");
+await page.waitForTimeout(1200);
+const typed = await todoTexts(page);
+check("enter: you can write a list without touching the mouse",
+  typed[0] === "milk" && typed[1] === "bread" && typed[2] === "eggs", JSON.stringify(typed.slice(0, 3)));
+check("enter: the list is saved", (await api.get("2026-10-20")).data?.todos?.[1]?.text === "bread");
+
+// Enter on an existing line puts the caret at the END of the next one — you're carrying
+// on down the list, not editing what's already written there.
+await page.click(rowInput(1));
+await page.keyboard.press("Enter");
+const caret = await page.evaluate(() => document.activeElement.selectionStart);
+check("enter: caret lands at the end of the next line, not the start", caret === "bread".length, String(caret));
+
+// The last row has nowhere to go. It must not wrap to the top or blur.
+await page.click(rowInput(17));
+await page.keyboard.press("Enter");
+check("enter: the last row stays put rather than wrapping", (await focusedIndex()) === 16,
+  String(await focusedIndex()));
+
+// ---------- 24. search ----------
 // /api/search had NO coverage before this: #searchBtn appeared in this file exactly
 // once, to measure a bounding box. Two pieces of genuinely subtle logic live in there
 // (LIKE-wildcard escaping, and re-checking every row against real field values so a
