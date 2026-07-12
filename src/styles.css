@@ -135,9 +135,17 @@
     color: var(--color-faded);
     opacity: 0.75;
   }
-  /* 16px drawn, 44px tappable. The delicacy of the sheet is the point, so the glyph stays
-     small — but the thumb gets a target it can actually hit. This planner mostly lives on
-     a phone, and the grip and the tick are the two things you touch most on it. */
+  /* 16px drawn, 44px tappable. The glyph stays small because the delicacy of the sheet is
+     the point; the thumb gets a target it can actually hit.
+
+     The spill is CONTAINED BY `overflow-clip` on the row (see Sheet.jsx). An absolutely
+     positioned child still contributes to scrollable overflow, so without that clip these
+     few stray pixels on the last row gave the whole checklist a permanent vertical
+     scrollbar — for 2px of nothing. Its sibling on .row-menu did the same horizontally.
+
+     Do NOT "fix" that by setting `inset: 0`. The pseudo-element is positioned against the
+     BUTTON, not the row, so `inset: 0` silently shrinks the target back to 16px and removes
+     the entire point of it. Clip at the row instead. */
   .grip::after {
     content: "";
     position: absolute;
@@ -165,10 +173,11 @@
     color: var(--color-status);          /* 4.7:1 on white — a control you can actually see */
     cursor: pointer;
   }
+  /* 22px drawn, 44px tappable. Clipped at the row like the others. */
   .row-menu::after {
     content: "";
     position: absolute;
-    inset: -11px;                        /* 22px drawn -> 44px tappable */
+    inset: -11px;
   }
   .row-menu:hover, .row-menu:focus-visible { background: var(--color-stripe); }
 
@@ -232,9 +241,9 @@ header input:focus-visible,
   outline-offset: 2px;
 }
 
-/* The tick: 18px drawn, 44px tappable. Same reasoning as .grip — the delicacy of the
-   sheet is the point, so the circle stays small, but ticking a to-do is the single most
-   common action in the whole product and it happens under a thumb. */
+/* The tick: 18px drawn, 44px tappable. Ticking a to-do is the most common action in the
+   product and it happens under a thumb. Same containment rule as .grip — the spill is
+   clipped at the row, so it can never become a scrollbar. */
 .tick { position: relative; }
 .tick::before {
   content: "";
@@ -242,6 +251,34 @@ header input:focus-visible,
   inset: -13px;
 }
 .tick:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+
+/* ---- SCROLLBARS: only when there is genuinely something to scroll ---------------
+
+   NO HORIZONTAL SCROLLING IN THE CHECKLIST, EVER. The rows never have anything to the
+   side; a horizontal scrollbar there is always a bug.
+
+   And there was one. The 44px hit areas on .row-menu and .grip are pseudo-elements that
+   spill outside their buttons on purpose — and .row-menu::after (inset -11px) spilled 3px
+   past the row's 8px of padding. Three pixels of phantom overflow is enough for the
+   browser to draw a scrollbar across the whole checklist, for content that does not exist.
+
+   `clip`, not `hidden`: hidden makes the element a scroll container (so the axis still
+   exists, it is just unreachable). clip removes the axis outright. Note that Tailwind's
+   `overflow-y-auto` alone is not enough — per spec, setting one axis to a non-visible
+   value computes the OTHER axis to auto, which is how the horizontal axis appeared here
+   in the first place. It has to be said explicitly. */
+#todo-list {
+  overflow-x: clip;
+}
+
+/* When a scrollbar IS warranted — a short window, or a long note — it should not look
+   like chrome bolted onto the paper. Thin, and in the sheet's own greys. */
+#todo-list,
+textarea,
+.toolbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
 
 /* Only on paper. */
 .print-only { display: none; }

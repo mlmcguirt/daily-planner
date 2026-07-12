@@ -112,7 +112,20 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu }) 
           <li
             key={i}
             data-rid={t.rid || undefined}
-            class={`flex min-h-[30px] flex-1 items-center gap-1.5 rounded-md px-2 py-0.5 max-md:flex-none max-md:py-1.5 ${
+            // overflow-clip is load-bearing, and it is why this app no longer has scrollbars
+            // it does not need.
+            //
+            // The grip, the tick and the row menu each get a 44px hit area from a pseudo-
+            // element that deliberately spills outside the button. But an absolutely
+            // positioned child still counts toward scrollable overflow — so those few stray
+            // pixels on the LAST row gave the checklist a permanent vertical scrollbar (2px
+            // of nothing), and the row menu's spill past the right edge gave it a horizontal
+            // one (3px of nothing). Two scrollbars, for four pixels that were never content.
+            //
+            // `clip`, not `hidden`: hidden makes the row a scroll container. clip just clips.
+            // The hit areas keep their full size and simply stop existing past the row edge —
+            // which is exactly where you would never aim for them anyway.
+            class={`flex min-h-[30px] flex-1 items-center gap-1.5 overflow-clip rounded-md py-0.5 pl-2 pr-3 max-md:flex-none max-md:py-1.5 ${
               i % 2 === 0 ? "bg-stripe" : ""
             } ${dragging === i ? "opacity-60 ring-1 ring-muted" : ""}`}
           >
