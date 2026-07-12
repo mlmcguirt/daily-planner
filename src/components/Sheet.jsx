@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "preact/hooks";
-import { BLOCKS } from "../lib/day.js";
+import { BLOCKS, MAX_TODO_ROWS } from "../lib/day.js";
 import { DateHeader } from "./DateHeader.jsx";
 import { SelectionPill } from "./SelectionPill.jsx";
 
@@ -45,7 +45,7 @@ function Block({ name, value, onChange, onSelect }) {
 // Reordering uses Pointer Events, not HTML5 drag-and-drop, because the latter does
 // nothing on a touchscreen — and this planner mostly lives on a phone. The grip is a
 // separate handle so dragging never fights with selecting text in the row.
-function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu }) {
+function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, onAddRow }) {
   const listRef = useRef(null);
   const [dragging, setDragging] = useState(null);
 
@@ -96,14 +96,49 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu }) 
   //
   // Caret lands at the END of whatever is already on the next line, not at the start:
   // you are continuing down the list, not editing what is already there.
+  //
+  // And on the LAST line, Enter adds one. The page has 17 ruled lines; you can write past
+  // the bottom of it, and the list scrolls to follow you.
+  const wantsNewRow = useRef(false);
+
   const onTextKeyDown = (i, e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();                          // never submit anything, never insert a newline
+
     const next = listRef.current?.children[i + 1]?.querySelector("input[type=text]");
-    if (!next) return;                           // last row: stay put rather than wrap
-    next.focus();
-    next.setSelectionRange(next.value.length, next.value.length);
+    if (next) {
+      next.focus();
+      next.setSelectionRange(next.value.length, next.value.length);
+      return;
+    }
+
+    if (todos.length >= MAX_TODO_ROWS) return;   // a held-down Enter must not run away
+
+    // The new row does not exist yet — it appears on the next render — so focus has to wait
+    // for it. Until then this input is still focused, and anything typed in that gap would
+    // land on the OLD line. A render tick is faster than a human, but not faster than key
+    // repeat, and a character silently appended to the wrong to-do is a data bug, not a
+    // cosmetic one. So: make this input read-only for the gap. Keystrokes in it do nothing
+    // instead of doing the wrong thing, and the effect below clears the flag and moves on.
+    e.currentTarget.readOnly = true;
+    wantsNewRow.current = true;
+    onAddRow();
   };
+
+  // The row now exists. Take the focus to it.
+  useEffect(() => {
+    if (!wantsNewRow.current) return;
+    wantsNewRow.current = false;
+
+    const rows = listRef.current?.children;
+    if (!rows) return;
+    for (const row of rows) row.querySelector("input[type=text]").readOnly = false;
+
+    const last = rows[rows.length - 1]?.querySelector("input[type=text]");
+    if (!last) return;
+    last.focus();
+    last.scrollIntoView({ block: "nearest" });   // follow the writing down the page
+  }, [todos.length]);
 
   return (
     <div class="min-h-0 rounded-md">
@@ -125,7 +160,18 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu }) 
             // `clip`, not `hidden`: hidden makes the row a scroll container. clip just clips.
             // The hit areas keep their full size and simply stop existing past the row edge —
             // which is exactly where you would never aim for them anyway.
-            class={`flex min-h-[30px] flex-1 items-center gap-1.5 overflow-clip rounded-md py-0.5 pl-2 pr-3 max-md:flex-none max-md:py-1.5 ${
+            // flex-[1_0_calc(100%/17)] — a ruled line, not a rubber band.
+            //
+            // It used to be flex-1 (basis 0, shrink 1), so the rows just SHARED whatever
+            // height the page had. Add an 18th line and all 17 quietly shrank to make room;
+            // you would have had to press Enter six times before anything scrolled, and the
+            // lines would have re-spaced under your cursor while you typed. Paper does not
+            // do that.
+            //
+            // A basis of exactly 1/17 of the page, with shrink 0: seventeen lines fill it to
+            // the pixel, and the eighteenth overflows — which is when the scrollbar appears,
+            // and only then.
+            class={`flex min-h-[30px] flex-[1_0_calc(100%/17)] items-center gap-1.5 overflow-clip rounded-md py-0.5 pl-2 pr-3 max-md:flex-none max-md:py-1.5 ${
               i % 2 === 0 ? "bg-stripe" : ""
             } ${dragging === i ? "opacity-60 ring-1 ring-muted" : ""}`}
           >
@@ -309,6 +355,8 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
           onReorder={todos => onChange({ ...day, todos })}
           onSelect={onSelect}
           onRowMenu={openRowMenu}
+          // Writing past the bottom of the page adds a line to it.
+          onAddRow={() => onChange({ ...day, todos: [...day.todos, { checked: false, text: "" }] })}
         />
       </div>
 

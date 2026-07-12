@@ -908,11 +908,45 @@ await page.keyboard.press("Enter");
 const caret = await page.evaluate(() => document.activeElement.selectionStart);
 check("enter: caret lands at the end of the next line, not the start", caret === "bread".length, String(caret));
 
-// The last row has nowhere to go. It must not wrap to the top or blur.
+// The page has 17 ruled lines. Enter on the last one adds another and the list scrolls —
+// you can write past the bottom of the page.
+const listState = () => page.evaluate(() => {
+  const ul = document.querySelector("#todo-list");
+  return {
+    rows: ul.children.length,
+    rowH: Math.round(ul.children[0].getBoundingClientRect().height),
+    scrollbar: ul.scrollHeight > ul.clientHeight + 1
+  };
+});
+
+const before = await listState();
+check("enter: 17 rows fill the page exactly, with no scrollbar", before.rows === 17 && !before.scrollbar,
+  JSON.stringify(before));
+
 await page.click(rowInput(17));
+await page.keyboard.type("past the bottom");
 await page.keyboard.press("Enter");
-check("enter: the last row stays put rather than wrapping", (await focusedIndex()) === 16,
-  String(await focusedIndex()));
+await page.waitForTimeout(150);                  // the new row appears on the next render
+const after = await listState();
+check("enter: the last row adds a new one", after.rows === 18, JSON.stringify(after));
+check("enter: and focus lands on it", (await focusedIndex()) === 17, String(await focusedIndex()));
+check("enter: and the list now scrolls", after.scrollbar, JSON.stringify(after));
+
+// The old row must not collect stray characters typed in the gap before focus moves.
+// (It used to: the first letter after Enter was appended to the line you had just left.)
+check("enter: the line you left is untouched",
+  (await todoTexts(page)).includes("past the bottom"), JSON.stringify(await todoTexts(page)));
+
+// The lines must not re-space under your cursor while you write. A ruled line is a ruled
+// line; the page scrolls instead of the rows shrinking to make room.
+check("enter: the existing rows keep their height", after.rowH === before.rowH,
+  `${before.rowH} -> ${after.rowH}`);
+
+await page.keyboard.type("and another");
+await page.waitForTimeout(1200);
+const grown = (await api.get("2026-10-20")).data?.todos || [];
+check("enter: the extra line is saved", grown[17]?.text === "and another",
+  JSON.stringify(grown.slice(16, 18)));
 
 // ---------- 24. search ----------
 // /api/search had NO coverage before this: #searchBtn appeared in this file exactly

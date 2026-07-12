@@ -4,7 +4,11 @@
 //   { day: 0..6, blocks: {morning, afternoon, evening, notes}, todos: [{checked, text, rid?}] }
 // `rid` marks a to-do that came from a recurring item, so it can't be added twice.
 
+// The page has 17 ruled lines. You can write past the bottom of the page — Enter on the
+// last line adds another and the checklist scrolls — but not forever: a held-down Enter
+// key would otherwise spawn rows until something gave.
 export const TODO_ROWS = 17;
+export const MAX_TODO_ROWS = 60;
 export const BLOCKS = ["morning", "afternoon", "evening", "notes"];
 export const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
