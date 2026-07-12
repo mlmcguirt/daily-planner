@@ -118,9 +118,18 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu }) 
               value={t.text}
               onInput={e => onText(i, e.currentTarget.value)}
               onSelect={e => onSelect({ kind: "todo", index: i }, e.currentTarget)}
-              class={`hand flex-1 border-0 border-b bg-transparent p-0 py-[3px] text-ink outline-none ${
+              // The text colour is EITHER ink OR faded — never both classes at once.
+              // Stacking `text-ink` and `text-faded` leaves the winner to Tailwind's
+              // emission order (it emits text-ink last, so ink silently won and the fix
+              // did nothing). Two competing colour utilities on one element is a coin
+              // toss you lose quietly.
+              //
+              // faded, not muted: a ticked item should recede, but 2.8:1 is not
+              // "receding", it is unreadable. The strikethrough already carries the
+              // "done" signal without asking the colour to do it too.
+              class={`todo-text hand flex-1 border-0 border-b bg-transparent p-0 py-[3px] outline-none ${
                 t.rid ? "border-dashed border-line" : "border-solid border-line"
-              } ${t.checked ? "text-muted line-through" : ""}`}
+              } ${t.checked ? "text-faded line-through" : "text-ink"}`}
             />
             {/* The recurring system used to be reachable ONLY by highlighting text — an
                 affordance with no visible signal anywhere. On a phone (which is where this

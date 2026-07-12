@@ -16,7 +16,15 @@
   --color-ink: #2e2e2e;        /* the writing */
   --color-stripe: #f2f2f2;     /* zebra rows in the checklist */
   --color-line: #cfcfcf;       /* hairlines under to-do rows */
-  --color-muted: #9a9a9a;      /* borders, secondary text */
+
+  /* --color-muted used to be documented as "borders, secondary text". It cannot be both.
+     As a hairline, #9a9a9a is decorative and 2.8:1 is fine. As TEXT -- a completed to-do --
+     2.8:1 fails WCAG AA (4.5:1) badly, and you cannot darken it without thickening every
+     border in the app and wrecking the paper feel. One token, two incompatible contrast
+     requirements. So: two tokens. */
+  --color-muted: #9a9a9a;      /* BORDERS ONLY. Decorative. Never put text in this. */
+  --color-faded: #6e6e6e;      /* secondary/completed TEXT. 5.0:1 on white -- clears AA. */
+
   --color-status: #6b6b6b;
   --color-alarm: #8a1d1d;
 
@@ -56,10 +64,26 @@
      dvh, not vh: on mobile Safari 100vh includes the URL bar, so the bottom of the sheet
      sat below the fold. */
   .sheet {
-    min-height: calc(100dvh - var(--border) * 2);
+    /* A DEFINITE height, so the sheet is exactly one screen and the flex children inside
+       it share that space — which is the whole reason the four blocks have weights, and
+       why 17 checklist rows shrink to fit rather than spilling.
+
+       dvh, not vh: on mobile Safari 100vh includes the URL bar, so the bottom of the
+       sheet sat below the fold.
+
+       (Tried `min-height: fit-content` here so a short laptop screen would grow the sheet
+       and scroll the page instead of clipping the last row. It does nothing: #todo-list is
+       an overflow-y-auto scroll container, so its content never propagates a size to its
+       parent. Delivering that would mean removing the list's internal scroll, which is
+       what makes the whole sheet fit one screen at normal heights. Left as-is; the
+       short-viewport clipping is recorded in TODOS.md.) */
+    height: calc(100dvh - var(--border) * 2);
   }
   @media (max-width: 768px) {
-    .sheet { min-height: 0; }        /* on a phone the sheet is as tall as its contents */
+    /* On a phone the sheet is simply as tall as its contents.
+       This is the rule that `max-md:h-auto` was MEANT to be — it sat in the class list
+       next to an inline `height` style, which beat it, so it never once applied. */
+    .sheet { height: auto; }
   }
 
   /* The four time blocks. The weight arrives as --weight (set per block in Sheet.jsx)
@@ -98,6 +122,7 @@
   .grip {
     touch-action: none;
     cursor: grab;
+    position: relative;
     flex: 0 0 auto;
     width: 16px;
     border: 0;
@@ -105,10 +130,21 @@
     padding: 0;
     line-height: 1;
     font-size: 15px;
-    color: var(--color-muted);
-    opacity: 0.55;
+    /* Was --color-muted at 0.55 opacity: about 1.85:1 against the paper, under the 3:1
+       floor for a control. It was nearly invisible AND nearly untappable. */
+    color: var(--color-faded);
+    opacity: 0.75;
+  }
+  /* 16px drawn, 44px tappable. The delicacy of the sheet is the point, so the glyph stays
+     small — but the thumb gets a target it can actually hit. This planner mostly lives on
+     a phone, and the grip and the tick are the two things you touch most on it. */
+  .grip::after {
+    content: "";
+    position: absolute;
+    inset: -14px -13px;
   }
   .grip:hover, .grip:focus-visible { opacity: 1; }
+  .grip:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 1px; }
   .grip:active { cursor: grabbing; }
 
   /* The visible door to the recurring feature, on any row that has something written
@@ -157,6 +193,55 @@
     transform: rotate(45deg);
   }
 }
+
+/* ---- FOCUS -------------------------------------------------------------------
+   DELIBERATELY UNLAYERED. These rules must sit outside @layer, because unlayered CSS
+   beats every cascade layer — including Tailwind's `utilities`. Put them in
+   @layer components and `border-b` / `border-line` (utilities, emitted later) win, and
+   the focus ring silently does nothing. That is exactly what happened on the first try.
+
+   Every field on the sheet carried `outline-none` with no replacement, and a to-do row's
+   underline was identical focused and unfocused — measured in the browser: focusing an
+   input changed literally zero pixels. So tabbing through 17 rows and 4 textareas moved
+   nothing on screen. That is strange rather than merely wrong: this app implements
+   arrow-key REORDERING and gives .grip a focus ring. Keyboard users were thought about,
+   and then left in the dark.
+
+   Not a browser default ring — a blue system outline would be the only un-designed pixel
+   on the paper. The sheet answers in its own language: the hairline thickens to ink, and
+   the row lifts. */
+
+.todo-text:focus-visible {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--color-ink);
+}
+#todo-list li:has(.todo-text:focus-visible) { background: var(--color-stripe); }
+
+.block-pane:has(textarea:focus-visible) {
+  border-color: var(--color-ink);
+  box-shadow: inset 0 0 0 1px var(--color-ink);
+}
+
+/* The toolbar, the date fields and the weekday buttons are chrome, not paper — they can
+   wear a real ring without breaking the illusion. */
+.chrome-btn:focus-visible,
+.days button:focus-visible,
+header input:focus-visible,
+.row-menu:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* The tick: 18px drawn, 44px tappable. Same reasoning as .grip — the delicacy of the
+   sheet is the point, so the circle stays small, but ticking a to-do is the single most
+   common action in the whole product and it happens under a thumb. */
+.tick { position: relative; }
+.tick::before {
+  content: "";
+  position: absolute;
+  inset: -13px;
+}
+.tick:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
 
 /* Only on paper. */
 .print-only { display: none; }
