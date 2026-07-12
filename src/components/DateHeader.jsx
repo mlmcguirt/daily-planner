@@ -70,7 +70,11 @@ function StepButton({ id, label, date, onDateChange, by, children }) {
       title={label}
       disabled={!usable}
       onClick={() => usable && onDateChange(shiftDate(date, by))}
-      class="flex h-[30px] w-[26px] flex-none items-center justify-center rounded-md border border-muted bg-white/70 text-[17px] leading-none text-ink hover:bg-white disabled:cursor-default disabled:opacity-40"
+      // No border, no box. The weekday letters beside these are bare glyphs that tint on
+      // hover; boxing the arrows made them read as chrome sitting on the paper, when they
+      // are the same kind of control. They keep their full 26x30 hit area — only the
+      // outline goes.
+      class="flex h-[30px] w-[26px] flex-none items-center justify-center rounded-md border-0 bg-transparent text-[17px] leading-none text-ink hover:bg-stripe disabled:cursor-default disabled:opacity-40"
     >
       {children}
     </button>
