@@ -11,8 +11,19 @@ function Block({ name, value, onChange, onSelect }) {
   return (
     <div
       id={name}
-      class="flex min-h-0 flex-col rounded-md border border-muted px-2.5 pt-1.5 pb-2 max-md:flex-none"
-      style={{ flex: `${WEIGHT[name]} 1 0` }}
+      // The weight goes in as a CSS VARIABLE, not as an inline `flex` value.
+      //
+      // It used to be `style={{ flex: `${WEIGHT[name]} 1 0` }}` alongside a
+      // `max-md:flex-none` class — and inline styles beat classes, so the mobile rule
+      // NEVER applied. On a phone the blocks stayed flex-basis:0 inside a height-capped
+      // column and collapsed to 16px each (just the heading), while their textareas
+      // (min-height 120px) spilled out and rendered on top of one another. The four
+      // blocks were an unreadable smear on the platform this planner mostly lives on.
+      //
+      // A variable can be read by a media query. An inline `flex` cannot be overridden
+      // by one. That is the whole fix. See .block-pane in styles.css.
+      class="block-pane flex min-h-0 flex-col rounded-md border border-muted px-2.5 pt-1.5 pb-2"
+      style={{ "--weight": WEIGHT[name] }}
     >
       <h2 class="m-0 mb-0.5 flex-none text-[15px] font-normal text-ink">{TITLES[name]}</h2>
       <textarea
@@ -107,9 +118,18 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu }) 
               value={t.text}
               onInput={e => onText(i, e.currentTarget.value)}
               onSelect={e => onSelect({ kind: "todo", index: i }, e.currentTarget)}
-              class={`hand flex-1 border-0 border-b bg-transparent p-0 py-[3px] text-ink outline-none ${
+              // The text colour is EITHER ink OR faded — never both classes at once.
+              // Stacking `text-ink` and `text-faded` leaves the winner to Tailwind's
+              // emission order (it emits text-ink last, so ink silently won and the fix
+              // did nothing). Two competing colour utilities on one element is a coin
+              // toss you lose quietly.
+              //
+              // faded, not muted: a ticked item should recede, but 2.8:1 is not
+              // "receding", it is unreadable. The strikethrough already carries the
+              // "done" signal without asking the colour to do it too.
+              class={`todo-text hand flex-1 border-0 border-b bg-transparent p-0 py-[3px] outline-none ${
                 t.rid ? "border-dashed border-line" : "border-solid border-line"
-              } ${t.checked ? "text-muted line-through" : ""}`}
+              } ${t.checked ? "text-faded line-through" : "text-ink"}`}
             />
             {/* The recurring system used to be reachable ONLY by highlighting text — an
                 affordance with no visible signal anywhere. On a phone (which is where this
@@ -240,10 +260,10 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
   };
 
   return (
-    <div
-      class="sheet mx-[var(--border)] my-[var(--border)] flex flex-col overflow-hidden rounded-[10px] bg-paper px-4 pt-3.5 pb-3 shadow-[0_2px_14px_rgba(0,0,0,.10)] max-md:mt-0 max-md:h-auto max-md:overflow-visible max-md:pb-6"
-      style={{ height: "calc(100vh - var(--border) * 2)" }}
-    >
+    // Height lives in styles.css (.sheet), not in an inline style — same reason as
+    // .block-pane above: an inline height cannot be overridden by a media query, so the
+    // `max-md:h-auto` that used to sit in this class list never once applied.
+    <div class="sheet mx-[var(--border)] my-[var(--border)] flex flex-col overflow-hidden rounded-[10px] bg-paper px-4 pt-3.5 pb-3 shadow-[0_2px_14px_rgba(0,0,0,.10)] max-md:mt-0 max-md:overflow-visible max-md:pb-6">
       <DateHeader date={date} onDateChange={onDateChange} />
       <div class="grid min-h-0 flex-1 grid-cols-2 gap-3.5 max-md:grid-cols-1">
         <div class="flex min-h-0 flex-col gap-3">
