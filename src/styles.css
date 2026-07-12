@@ -220,11 +220,15 @@
    on the paper. The sheet answers in its own language: the hairline thickens to ink, and
    the row lifts. */
 
+/* The underline is the whole focus indicator: it thickens and goes to ink.
+   There used to be a row "lift" here too (background: var(--color-stripe) on the focused
+   li). It tinted the white rows grey — the checklist is zebra-striped, so half the rows
+   are white, and clicking one changed its colour. A row must not change colour just
+   because you put the cursor in it; the line under the writing is enough. */
 .todo-text:focus-visible {
   border-bottom-width: 2px;
   border-bottom-color: var(--color-ink);
 }
-#todo-list li:has(.todo-text:focus-visible) { background: var(--color-stripe); }
 
 .block-pane:has(textarea:focus-visible) {
   border-color: var(--color-ink);
