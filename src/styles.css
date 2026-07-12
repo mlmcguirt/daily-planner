@@ -41,6 +41,36 @@
 }
 
 @layer components {
+  /* THE SHEET'S HEIGHT LIVES HERE, NOT IN AN INLINE STYLE.
+     It used to be style={{height: "calc(100vh - ...)"}} on the element, next to a
+     `max-md:h-auto` class. Inline styles beat classes, so that mobile rule never applied
+     once — the sheet stayed pinned to 100vh on phones, which is the exact case it was
+     written to prevent.
+
+     min-height, not height: on a tall screen the sheet fills the viewport exactly as
+     before. On a short one (1280x720 is a very common laptop) 17 checklist rows genuinely
+     do not fit, and the sheet used to slice the last row in half — which reads as a
+     rendering bug, not as "scroll for more". Now it grows and the page scrolls. Scrolling
+     is honest; clipping is not.
+
+     dvh, not vh: on mobile Safari 100vh includes the URL bar, so the bottom of the sheet
+     sat below the fold. */
+  .sheet {
+    min-height: calc(100dvh - var(--border) * 2);
+  }
+  @media (max-width: 768px) {
+    .sheet { min-height: 0; }        /* on a phone the sheet is as tall as its contents */
+  }
+
+  /* The four time blocks. The weight arrives as --weight (set per block in Sheet.jsx)
+     precisely so this media query can override it — an inline `flex` could not be. */
+  .block-pane { flex: var(--weight) 1 0; }
+  @media (max-width: 768px) {
+    /* Size to content, and give the textarea room. Without this the blocks collapsed to
+       16px each and their textareas overlapped one another. */
+    .block-pane { flex: 0 0 auto; }
+  }
+
   /* Handwriting goes ONLY on what you type. Headings, buttons and labels stay serif.
      Caveat has a small x-height, hence the size bump. */
   .hand {
