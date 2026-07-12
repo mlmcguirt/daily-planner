@@ -1,6 +1,6 @@
 {
   "name": "daily-planner",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A printable-style daily planner PWA that syncs across devices (Cloudflare Pages + D1)",
   "type": "module",
   "private": true,
