@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+/* Self-hosted so the handwriting still works offline. A CDN font falls back to
+   serif exactly when the PWA has no signal, which is when it matters most. */
+@font-face {
+  font-family: "Caveat";
+  src: url("/fonts/caveat.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --color-paper: #ffffff;      /* the sheet */
+  --color-backdrop: #f7efdd;   /* cream band around it */
+  --color-ink: #2e2e2e;        /* the writing */
+  --color-stripe: #f2f2f2;     /* zebra rows in the checklist */
+  --color-line: #cfcfcf;       /* hairlines under to-do rows */
+  --color-muted: #9a9a9a;      /* borders, secondary text */
+  --color-status: #6b6b6b;
+  --color-alarm: #8a1d1d;
+
+  --font-hand: "Caveat", "Segoe Script", "Bradley Hand", cursive;
+  --font-paper: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+}
+
+/* Cream band: the same on all four sides, and tall enough to hold the buttons.
+   Phones get a thinner one — 80px on every side would swallow a 390px screen. */
+:root { --border: 80px; }
+@media (max-width: 640px) { :root { --border: 16px; } }
+
+@layer base {
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-paper);
+    color: var(--color-ink);
+    background: var(--color-backdrop);
+    -webkit-tap-highlight-color: transparent;
+  }
+  * { box-sizing: border-box; }
+}
+
+@layer components {
+  /* Handwriting goes ONLY on what you type. Headings, buttons and labels stay serif.
+     Caveat has a small x-height, hence the size bump. */
+  .hand {
+    font-family: var(--font-hand);
+    font-size: 21px;
+  }
+
+  .chrome-btn {
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--color-ink);
+    background: #fff;
+    border: 1px solid var(--color-muted);
+    border-radius: 6px;
+    padding: 7px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .chrome-btn:active { background: var(--color-stripe); }
+
+  /* Drag handle for reordering a to-do.
+     touch-action:none is load-bearing: without it a finger drag scrolls the page
+     instead of moving the row. */
+  .grip {
+    touch-action: none;
+    cursor: grab;
+    flex: 0 0 auto;
+    width: 16px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    line-height: 1;
+    font-size: 15px;
+    color: var(--color-muted);
+    opacity: 0.55;
+  }
+  .grip:hover, .grip:focus-visible { opacity: 1; }
+  .grip:active { cursor: grabbing; }
+
+  /* The visible door to the recurring feature, on any row that has something written
+     on it. Drawn small so the sheet stays paper; tapped big, because this is a phone.
+     The 44px hit area comes from the pseudo-element, not from the glyph — the target is
+     deliberately much larger than the thing you can see. */
+  .row-menu {
+    flex: 0 0 auto;
+    position: relative;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    padding: 0;
+    line-height: 1;
+    font-size: 15px;
+    color: var(--color-status);          /* 4.7:1 on white — a control you can actually see */
+    cursor: pointer;
+  }
+  .row-menu::after {
+    content: "";
+    position: absolute;
+    inset: -11px;                        /* 22px drawn -> 44px tappable */
+  }
+  .row-menu:hover, .row-menu:focus-visible { background: var(--color-stripe); }
+
+  /* Round checkbox with a tick, matching the paper-planner look. */
+  .tick {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px; height: 18px; min-width: 18px;
+    border: 1.4px solid var(--color-muted);
+    border-radius: 9999px;
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    margin: 0;
+  }
+  .tick:checked { background: var(--color-ink); border-color: var(--color-ink); }
+  .tick:checked::after {
+    content: "";
+    position: absolute; left: 5px; top: 2px;
+    width: 5px; height: 9px;
+    border: solid #fff; border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+}
+
+/* Only on paper. */
+.print-only { display: none; }
+
+@media print {
+  /* Landscape by default — the sheet is two columns side by side, which is a
+     landscape shape. Portrait squeezed it into a narrow strip. */
+  @page { size: landscape; margin: 10mm; }
+
+  .toolbar, .overlay, #selectionPill, .grip, .row-menu, #prevDay, #nextDay { display: none !important; }
+  body { background: #fff; }
+
+  /* No cream band on paper, and the sheet is as tall as its contents: it fits one page
+     as it stands, and only runs onto a second if you add enough rows to need one. */
+  :root { --border: 0px; }
+  .sheet {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  .grid { gap: 6mm !important; min-height: 0 !important; align-items: start; }
+
+  /* Blocks size to their content instead of sharing out screen height. */
+  #morning, #afternoon, #evening, #notes {
+    flex: 0 0 auto !important;
+    break-inside: avoid;
+  }
+  textarea[data-key] { display: none !important; }   /* the mirror prints instead */
+  .print-only { display: block !important; min-height: 12mm; }
+
+  /* Compact rows so a full checklist fits alongside the four blocks. */
+  #todo-list {
+    overflow: visible !important;
+    height: auto !important;
+    display: block !important;
+  }
+  #todo-list li {
+    min-height: 0 !important;
+    flex: 0 0 auto !important;
+    padding: 1px 4px !important;
+    break-inside: avoid;
+  }
+
+  .hand { font-size: 12pt; }
+  h2 { font-size: 9pt; }
+
+  /* Ticked boxes and the day marker are solid fills; browsers drop those by default. */
+  .tick, .days span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -1,0 +1,13 @@
+name = "daily-planner"
+# Vite builds the app into dist/. The Pages project's build command must be
+# `npm ci && npm run build` — a blank build command would ship an empty site.
+pages_build_output_dir = "dist"
+compatibility_date = "2026-07-11"
+
+# Binds your D1 database to the app as env.DB inside the Pages Function.
+# Replace database_id with the id Cloudflare gives you when you create the DB
+# (the setup guide walks through this).
+[[d1_databases]]
+binding = "DB"
+database_name = "planner-db"
+database_id = "0bc49bc7-48fa-4b6c-ab48-27721866c51c"
