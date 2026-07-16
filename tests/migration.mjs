@@ -12,7 +12,8 @@ import { chromium } from "playwright-core";
 
 const U = process.env.PLANNER_URL || "http://127.0.0.1:8788";
 // Overridable so a run against a real deployment can clean up after itself.
-const PASS = process.env.PLANNER_PASS || "migrate-" + Math.random().toString(36).slice(2, 8);
+// Pad before slicing: toString(36) drops trailing zeros, so a bare slice can be short.
+const PASS = process.env.PLANNER_PASS || "migrate-" + (Math.random().toString(36).slice(2) + "000000").slice(0, 6);
 const H = { "X-Planner-Key": PASS, "Content-Type": "application/json" };
 const getDay = d => fetch(`${U}/api/day?date=${d}`, { headers: H }).then(r => r.json());
 

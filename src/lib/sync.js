@@ -309,7 +309,7 @@ export function createSync(key) {
 
   return {
     enqueue, flush, fetchDay, anyDay, localDay, queuedDay,
-    getVersion, status, subscribe, destroy,
+    status, subscribe, destroy,
     conflictFor, nextConflict, keepMine, useTheirs,
     getRecurring, putRecurring, search, exportAll,
     retryNow: () => { retryDelay = 0; lastError = null; emit(); flush(); },

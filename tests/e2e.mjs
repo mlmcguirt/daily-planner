@@ -13,7 +13,10 @@ import { chromium } from "playwright-core";
 
 const U = process.env.PLANNER_URL || "http://127.0.0.1:8788";
 // Overridable so a run against a real deployment can clean up after itself.
-const PASS = process.env.PLANNER_PASS || "e2e-" + Math.random().toString(36).slice(2, 8);
+// Pad before slicing: Math.random().toString(36) drops trailing zeros, so a bare
+// slice(2, 8) occasionally yields fewer than 6 chars — a latent flake the moment any
+// passphrase floor lands above the short draw's length.
+const PASS = process.env.PLANNER_PASS || "e2e-" + (Math.random().toString(36).slice(2) + "000000").slice(0, 6);
 const H = { "X-Planner-Key": PASS, "Content-Type": "application/json" };
 
 // "Another device": plain fetch, unaffected by the browser's offline state.
