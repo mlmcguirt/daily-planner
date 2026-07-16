@@ -48,6 +48,29 @@ function Block({ name, value, onChange, onSelect }) {
 function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, onAddRow }) {
   const listRef = useRef(null);
   const [dragging, setDragging] = useState(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+
+  // A short laptop screen (1280x720 is common) genuinely cannot fit 17 rows, so the list
+  // scrolls. With no signal, the half-visible last row reads as a clipping BUG, not as
+  // "there's more" — and there is no obvious scrollbar to say otherwise. So: a soft fade
+  // at the foot of the list, shown only while it can still scroll down. On a phone the
+  // page scrolls instead of the list, so scrollHeight never exceeds clientHeight and this
+  // stays silent. (min-height:fit-content was tried for this and does nothing — a scroll
+  // container never propagates its content height to its parent. See TODOS.md.)
+  useEffect(() => {
+    const ul = listRef.current;
+    if (!ul) return;
+    const update = () =>
+      setMoreBelow(
+        ul.scrollHeight > ul.clientHeight + 1 &&
+        ul.scrollTop + ul.clientHeight < ul.scrollHeight - 1
+      );
+    update();
+    ul.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);   // catches the viewport getting shorter
+    ro.observe(ul);
+    return () => { ul.removeEventListener("scroll", update); ro.disconnect(); };
+  }, [todos.length]);   // and adding/removing a row changes what fits
 
   const rowAt = clientY => {
     const rows = [...listRef.current.children];
@@ -141,7 +164,7 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, on
   }, [todos.length]);
 
   return (
-    <div class="min-h-0 rounded-md">
+    <div class="relative min-h-0 rounded-md">
       <ul ref={listRef} id="todo-list" class="m-0 flex h-full list-none flex-col overflow-y-auto p-0 max-md:overflow-visible">
         {todos.map((t, i) => (
           <li
@@ -229,6 +252,10 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, on
           </li>
         ))}
       </ul>
+      {/* The affordance: a hairline of paper fading up over the last row, so a list that
+          runs past the fold says "more below" instead of looking sliced. Pointer-events
+          pass through it, and it never prints. */}
+      {moreBelow && <div class="fade-more" aria-hidden="true" />}
     </div>
   );
 }

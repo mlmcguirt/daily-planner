@@ -1047,6 +1047,31 @@ await page.click("#nextDay");
 await page.waitForTimeout(1200);
 check("undo: leaving the day withdraws the offer", !(await page.isVisible("#undoClearBtn")));
 
+// ---------- 27. a short viewport says "more below", not a clipped row ----------
+// At 1280x720 (a very common laptop) 17 rows genuinely don't fit and the list scrolls.
+// A half-cut last row reads as a rendering bug; a fade at the foot reads as "scroll for
+// more". It shows only while there is actually more below, and clears at the bottom.
+const listOverflows = () => page.evaluate(() => {
+  const ul = document.querySelector("#todo-list");
+  return ul.scrollHeight > ul.clientHeight + 1;
+});
+
+await page.setViewportSize({ width: 1280, height: 720 });
+await setDate(page, "2026-11-06");
+await page.waitForTimeout(500);
+check("short-viewport: the checklist overflows at 720px", await listOverflows());
+check("short-viewport: a fade signals there's more below", await page.isVisible(".fade-more"));
+
+await page.evaluate(() => { const ul = document.querySelector("#todo-list"); ul.scrollTop = ul.scrollHeight; });
+await page.waitForTimeout(300);
+check("short-viewport: at the bottom, the fade is gone", !(await page.isVisible(".fade-more")));
+
+// And on a tall screen where everything fits, it never shows at all.
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.waitForTimeout(400);
+check("tall-viewport: no fade when all 17 rows fit",
+  !(await listOverflows()) && !(await page.isVisible(".fade-more")));
+
 await browser.close();
 
 const bad = results.filter(r => !r.pass);

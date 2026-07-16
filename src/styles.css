@@ -181,6 +181,21 @@
   }
   .row-menu:hover, .row-menu:focus-visible { background: var(--color-stripe); }
 
+  /* The "more below" fade. Shown by Checklist only while the list can still scroll down
+     — a short viewport that can't hold 17 rows. It turns a half-cut last row into an
+     honest signal that there is more to reach. Insets by 2px so the thin scrollbar stays
+     visible at the right edge; hidden when printing (see @media print). */
+  .fade-more {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    bottom: 0;
+    height: 26px;
+    pointer-events: none;
+    border-radius: 0 0 8px 8px;
+    background: linear-gradient(to bottom, transparent, var(--color-paper));
+  }
+
   /* Round checkbox with a tick, matching the paper-planner look. */
   .tick {
     appearance: none;
@@ -292,7 +307,7 @@ textarea,
      landscape shape. Portrait squeezed it into a narrow strip. */
   @page { size: landscape; margin: 10mm; }
 
-  .toolbar, .overlay, #selectionPill, .grip, .row-menu, #prevDay, #nextDay { display: none !important; }
+  .toolbar, .overlay, #selectionPill, .grip, .row-menu, #prevDay, #nextDay, .fade-more { display: none !important; }
   body { background: #fff; }
 
   /* No cream band on paper, and the sheet is as tall as its contents: it fits one page
