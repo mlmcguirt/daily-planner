@@ -14,7 +14,7 @@ import { useState, useEffect, useRef } from "preact/hooks";
 //
 // At md and up nothing has changed: `contents` makes the overflow group transparent to
 // the flex layout, so all the buttons sit in the cream band exactly as before.
-export function Toolbar({ carry, status, undo, onUndo, onSearch, onRecurring, onClear, onPrint, onRetry, onSignOut, onCarry }) {
+export function Toolbar({ carry, status, undo, onUndo, onSearch, onRecurring, onClear, onExport, onPrint, onRetry, onSignOut, onCarry }) {
   const s = statusText(status);
   const [open, setOpen] = useState(false);
   const moreRef = useRef(null);
@@ -80,6 +80,7 @@ export function Toolbar({ carry, status, undo, onUndo, onSearch, onRecurring, on
 
         <div class={secondary}>
           <button id="clearBtn" class="chrome-btn" onClick={act(onClear)}>Clear day</button>
+          <button id="exportBtn" class="chrome-btn" onClick={act(onExport)}>Back up</button>
           <button id="printBtn" class="chrome-btn" onClick={act(onPrint)}>Print</button>
           <button id="signOutBtn" class="chrome-btn" onClick={act(onSignOut)}>
             {import.meta.env.VITE_DEMO ? "Reset demo" : "Sign out"}

@@ -155,6 +155,28 @@ function Planner({ passphrase, onSignOut }) {
     setUndo(null);
   };
 
+  // Download a full backup. The passphrase is the only key and there's no reset, so this
+  // is the owner's safety net against losing everything to a mistyped passphrase or a
+  // cleared browser. Pretty-printed JSON so it's human-readable, and dated in the filename.
+  const doExport = async () => {
+    let dump;
+    try {
+      dump = await s.exportAll();
+    } catch {
+      alert("Couldn't build your backup just now — you may be offline. Your entries are still saved on this device; try again once you're back online.");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `daily-planner-${todayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   // In the demo this button says "Reset demo" and does something quite different.
   //
   // Sign out clears planner:key, which would resurrect the passphrase gate the demo
@@ -255,6 +277,7 @@ function Planner({ passphrase, onSignOut }) {
         onSearch={() => setDialog("search")}
         onRecurring={() => setDialog("recurring")}
         onClear={doClear}
+        onExport={doExport}
         onPrint={() => window.print()}
         onRetry={() => s.retryNow()}
         onSignOut={doSignOut}

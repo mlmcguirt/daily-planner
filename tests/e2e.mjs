@@ -1117,6 +1117,38 @@ check("pill(narrow): the first action is fully reachable", geo.editLeft >= 0 && 
 await page.setViewportSize({ width: 1280, height: 900 });
 await api.recurring([]);
 
+// ---------- 29. export / backup ----------
+// The passphrase is the only key and there is no reset, so a downloadable backup is the
+// one guard against losing everything. "Back up" pulls the whole planner via /api/export
+// (straight from D1) and saves it as dated, human-readable JSON.
+await api.put("2026-12-25", {
+  day: 4, blocks: { morning: "back up this day" },
+  todos: [{ checked: true, text: "wrap presents" }], applied: []
+});
+await api.recurring([{ id: "exp-r", text: "backup recurring", weekdays: [2] }]);
+
+const [download] = await Promise.all([
+  page.waitForEvent("download"),
+  page.click("#exportBtn")
+]);
+const { readFile } = await import("node:fs/promises");
+const dump = JSON.parse(await readFile(await download.path(), "utf8"));
+
+check("export: the file is a versioned JSON backup",
+  dump.version === 1 && Array.isArray(dump.days) && Array.isArray(dump.recurring),
+  JSON.stringify({ version: dump.version }));
+check("export: the filename is dated", download.suggestedFilename().startsWith("daily-planner-"),
+  download.suggestedFilename());
+const xday = dump.days.find(d => d.date === "2026-12-25");
+check("export: it contains a day you wrote, in full",
+  !!xday && xday.data?.blocks?.morning === "back up this day" && xday.data?.todos?.[0]?.text === "wrap presents",
+  JSON.stringify(xday?.data));
+check("export: it contains the recurring list",
+  dump.recurring.some(r => r.id === "exp-r" && Array.isArray(r.weekdays) && r.weekdays.includes(2)),
+  JSON.stringify(dump.recurring));
+
+await api.recurring([]);
+
 await browser.close();
 
 const bad = results.filter(r => !r.pass);

@@ -262,6 +262,19 @@ export function createSync(key) {
     return saved;
   }
 
+  // ---- export -------------------------------------------------------------
+  // A full copy of this planner — every day and the recurring list — for the owner to
+  // keep. The passphrase is the only key and there's no reset, so a downloadable backup
+  // is the one guard against a mistyped passphrase (or a cleared browser) taking
+  // everything with it. Read-only; goes through the same shimmed fetch as everything else,
+  // so it works untouched in the demo.
+  async function exportAll() {
+    const r = await fetch("/api/export", { headers: headers() });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || r.statusText);
+    return j;
+  }
+
   // ---- search -------------------------------------------------------------
   async function search(q) {
     const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { headers: headers() });
@@ -298,7 +311,7 @@ export function createSync(key) {
     enqueue, flush, fetchDay, anyDay, localDay, queuedDay,
     getVersion, status, subscribe, destroy,
     conflictFor, nextConflict, keepMine, useTheirs,
-    getRecurring, putRecurring, search,
+    getRecurring, putRecurring, search, exportAll,
     retryNow: () => { retryDelay = 0; lastError = null; emit(); flush(); },
     set onConflict(fn) { onConflict = fn; }
   };

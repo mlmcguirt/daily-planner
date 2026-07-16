@@ -104,6 +104,23 @@ const apiHit = await page.evaluate(async () => {
 });
 check("demo: /api/day is answered by the shim, never the network", apiHit === 200);
 
+// ---------- 8. Back up works with no server ----------
+// The backup button pulls the whole planner via the demo's /api/export shim and saves it
+// as JSON — the same safety net the real app offers, proven against the fake server.
+const [dl] = await Promise.all([
+  page.waitForEvent("download"),
+  page.click("#exportBtn")
+]);
+const { readFile } = await import("node:fs/promises");
+const dump = JSON.parse(await readFile(await dl.path(), "utf8"));
+check("demo: Back up produces a versioned JSON file with days",
+  dump.version === 1 && Array.isArray(dump.days) && dump.days.length > 0,
+  JSON.stringify({ version: dump.version, days: dump.days?.length }));
+check("demo: the backup includes the seeded recurring item",
+  (dump.recurring || []).some(r => r.text === "Read 20 pages"), JSON.stringify(dump.recurring));
+check("demo: the filename is dated", dl.suggestedFilename().startsWith("daily-planner-"),
+  dl.suggestedFilename());
+
 await browser.close();
 
 const bad = results.filter(r => !r.pass);

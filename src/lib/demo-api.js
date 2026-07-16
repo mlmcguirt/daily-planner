@@ -192,6 +192,21 @@ function handle(method, url) {
     return json({ items: read(RECUR_KEY, []) });
   }
 
+  if (path === "/api/export" && method === "GET") {
+    // Mirror the real /api/export from the demo's own "server" rows, so the backup button
+    // works here too and cannot drift from production's shape (CLAUDE.md's must-stay-in-step
+    // rule). The days live under demo:day:*, oldest-first like the API's ORDER BY day_date.
+    const days = [];
+    for (const k of Object.keys(localStorage)) {
+      if (!k.startsWith("demo:day:")) continue;
+      const row = read(k, null);
+      if (!row || !row.data) continue;
+      days.push({ date: k.slice("demo:day:".length), data: row.data, updated_at: row.updated_at });
+    }
+    days.sort((a, b) => (a.date < b.date ? -1 : 1));
+    return json({ version: 1, exported_at: new Date().toISOString(), days, recurring: read(RECUR_KEY, []) });
+  }
+
   if (path === "/api/search" && method === "GET") {
     const q = (url.searchParams.get("q") || "").trim();
     if (q.length < 2) return json({ error: "Search for at least 2 characters" }, 400);
