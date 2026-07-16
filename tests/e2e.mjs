@@ -992,6 +992,61 @@ await page.waitForTimeout(1200);
 check("search: picking a result navigates to that day", (await shownDate()) === "2026-08-05",
   await shownDate());
 
+// ---------- 25. "Today" jumps home ----------
+// You can step a day or a week, but paging weeks away used to strand you: the only way
+// back was retyping the whole date. The button appears only when you're somewhere else —
+// on today it would do nothing, so it isn't drawn.
+const pad = n => String(n).padStart(2, "0");
+const now = new Date();
+const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+await setDate(page, "2026-08-05");
+await page.waitForTimeout(400);
+check("today: the button is offered when you're not on today", await page.isVisible("#todayBtn"));
+await page.click("#todayBtn");
+await page.waitForTimeout(1200);
+check("today: clicking it jumps straight to today", (await shownDate()) === today, await shownDate());
+check("today: and it hides once you're there", !(await page.isVisible("#todayBtn")));
+
+// ---------- 26. Undo a Clear ----------
+// Clear was the one action that broke the app's promise that nothing is silently lost —
+// a confirm, and then it was gone for good. Now the cleared day can be taken back, on
+// screen AND on the server, until you leave the day or write on it.
+await setDate(page, "2026-11-05");
+await typeMorning(page, "hold onto this");
+await page.click(rowInput(1));
+await page.keyboard.type("and this too");
+await page.waitForTimeout(1200);
+
+page.once("dialog", d => d.accept());                                      // the Clear confirm
+await page.click("#clearBtn");
+await page.waitForTimeout(1200);
+check("undo: Clear empties the sheet",
+  (await page.inputValue('textarea[data-key="morning"]')) === "" && (await todoTexts(page)).length === 0,
+  JSON.stringify(await todoTexts(page)));
+check("undo: Clear reaches the server", !(await api.get("2026-11-05")).data?.blocks?.morning,
+  JSON.stringify((await api.get("2026-11-05")).data?.blocks));
+check("undo: the Undo offer appears", await page.isVisible("#undoClearBtn"));
+
+await page.click("#undoClearBtn");
+await page.waitForTimeout(1200);
+check("undo: it brings the cleared day back on screen",
+  (await page.inputValue('textarea[data-key="morning"]')) === "hold onto this"
+    && (await todoTexts(page)).includes("and this too"), JSON.stringify(await todoTexts(page)));
+check("undo: and restores it on the server too",
+  (await api.get("2026-11-05")).data?.blocks?.morning === "hold onto this",
+  JSON.stringify((await api.get("2026-11-05")).data?.blocks));
+check("undo: the offer clears once taken", !(await page.isVisible("#undoClearBtn")));
+
+// The offer belongs to the day you cleared. Leaving that day withdraws it.
+page.once("dialog", d => d.accept());
+await page.click("#clearBtn");
+await page.waitForTimeout(600);
+check("undo: offered again after another clear", await page.isVisible("#undoClearBtn"));
+await page.click("#nextDay");
+await page.waitForTimeout(1200);
+check("undo: leaving the day withdraws the offer", !(await page.isVisible("#undoClearBtn")));
+
 await browser.close();
 
 const bad = results.filter(r => !r.pass);

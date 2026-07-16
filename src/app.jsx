@@ -33,6 +33,7 @@ function Planner({ passphrase, onSignOut }) {
   const [conflict, setConflict] = useState(null);
   const [carry, setCarry] = useState(null);
   const [dialog, setDialog] = useState(null);   // "search" | "recurring"
+  const [undo, setUndo] = useState(null);       // the day as it was just before a Clear, so it can be taken back
   const [prefill, setPrefill] = useState(null); // a highlighted phrase, on its way to becoming recurring
   const [editingRid, setEditingRid] = useState(null); // a recurring item to open the editor on
   const [adopt, setAdopt] = useState(null);           // the highlighted row/line awaiting its new rid
@@ -113,8 +114,12 @@ function Planner({ passphrase, onSignOut }) {
   }, []);
 
   // ---- saving -------------------------------------------------------------
-  const change = useCallback(next => {
+  // Any ordinary edit withdraws a pending "undo clear" — once you've started writing on
+  // the fresh page, taking it back would silently discard what you just wrote. The Clear
+  // and the Undo themselves pass keepUndo so they don't cancel their own offer.
+  const change = useCallback((next, { keepUndo = false } = {}) => {
     setDay(next);
+    if (!keepUndo) setUndo(null);
     clearTimeout(saveTimer.current);
     const ds = dateRef.current;
     saveTimer.current = setTimeout(() => {
@@ -123,6 +128,9 @@ function Planner({ passphrase, onSignOut }) {
       s.flush();
     }, SAVE_DEBOUNCE);
   }, []);
+
+  // The offer is for the day you cleared; leaving that day withdraws it.
+  useEffect(() => { setUndo(null); }, [date]);
 
   // ---- actions ------------------------------------------------------------
   const doCarry = () => {
@@ -133,7 +141,18 @@ function Planner({ passphrase, onSignOut }) {
 
   const doClear = () => {
     if (!confirm("Clear this day's entries?")) return;
-    change(mergeRecurring(emptyDay(weekdayOf(date)), recurring, weekdayOf(date)));
+    const before = day;                          // exactly what's on the sheet right now
+    change(mergeRecurring(emptyDay(weekdayOf(date)), recurring, weekdayOf(date)), { keepUndo: true });
+    setUndo(before);                             // and it stays offered until you leave or write
+  };
+
+  // Put the cleared day back. The confirm guards the click; this guards the regret —
+  // the whole app's promise is that nothing is silently lost, and a Clear was the one
+  // place that broke it.
+  const doUndoClear = () => {
+    if (!undo) return;
+    change(undo, { keepUndo: true });
+    setUndo(null);
   };
 
   // In the demo this button says "Reset demo" and does something quite different.
@@ -230,6 +249,8 @@ function Planner({ passphrase, onSignOut }) {
       <Toolbar
         carry={carry}
         status={status}
+        undo={undo}
+        onUndo={doUndoClear}
         onCarry={doCarry}
         onSearch={() => setDialog("search")}
         onRecurring={() => setDialog("recurring")}

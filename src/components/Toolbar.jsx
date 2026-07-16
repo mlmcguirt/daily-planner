@@ -14,7 +14,7 @@ import { useState, useEffect, useRef } from "preact/hooks";
 //
 // At md and up nothing has changed: `contents` makes the overflow group transparent to
 // the flex layout, so all the buttons sit in the cream band exactly as before.
-export function Toolbar({ carry, status, onSearch, onRecurring, onClear, onPrint, onRetry, onSignOut, onCarry }) {
+export function Toolbar({ carry, status, undo, onUndo, onSearch, onRecurring, onClear, onPrint, onRetry, onSignOut, onCarry }) {
   const s = statusText(status);
   const [open, setOpen] = useState(false);
   const moreRef = useRef(null);
@@ -49,6 +49,15 @@ export function Toolbar({ carry, status, onSearch, onRecurring, onClear, onPrint
       {carry && (
         <button id="carryBtn" class="chrome-btn border-dashed" onClick={onCarry}>
           Carry over {carry.count} unfinished from {carry.from}
+        </button>
+      )}
+
+      {/* Stays in the primary row, never in the overflow: like Retry, a recovery the
+          moment demands must not be two taps deep. Dashed, because it's a passing offer,
+          not standing chrome — it withdraws the instant you leave the day or write on it. */}
+      {undo && (
+        <button id="undoClearBtn" class="chrome-btn border-dashed" onClick={onUndo}>
+          Undo clear
         </button>
       )}
 

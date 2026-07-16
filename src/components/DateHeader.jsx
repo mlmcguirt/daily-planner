@@ -1,4 +1,4 @@
-import { DAY_LABELS, weekdayOf, shiftDate, DATE_RE } from "../lib/day.js";
+import { DAY_LABELS, weekdayOf, shiftDate, todayStr, DATE_RE } from "../lib/day.js";
 
 const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -8,6 +8,11 @@ export function DateHeader({ date, onDateChange }) {
   const [y, m, d] = date.split("-");
   const usable = DATE_RE.test(date);            // a half-typed date has no week to move within
   const active = usable ? weekdayOf(date) : -1;
+  // The one gap in navigation: you can step a day or a week, but paging weeks back left
+  // no way home except retyping the date. "Today" only appears when you're somewhere else
+  // — on today it would be a control that does nothing, so it isn't drawn. It sits at the
+  // left of the date group, so showing it never nudges the MM/DD/YYYY fields.
+  const today = todayStr();
 
   const set = (part, value) => {
     const next = { y, m, d, [part]: value };
@@ -51,6 +56,21 @@ export function DateHeader({ date, onDateChange }) {
         <StepButton id="nextWeek" label="Next week" date={date} onDateChange={onDateChange} by={7}>›</StepButton>
       </div>
       <div class="flex items-center gap-1.5">
+        {date !== today && (
+          <button
+            id="todayBtn"
+            type="button"
+            aria-label="Go to today"
+            title="Go to today"
+            onClick={() => onDateChange(today)}
+            // A quiet word, not a glyph — "today" has no unambiguous symbol, and the app's
+            // rule is to say the true thing in words. Bare like the day arrows beside it:
+            // no box, tints on hover, so it reads as the same kind of control, not chrome.
+            class="mr-0.5 flex h-[30px] flex-none items-center justify-center rounded-md border-0 bg-transparent px-2 text-[15px] leading-none text-ink hover:bg-stripe"
+          >
+            Today
+          </button>
+        )}
         <StepButton id="prevDay" label="Previous day" date={date} onDateChange={onDateChange} by={-1}>‹</StepButton>
         <input id="mm" class={`${field} w-[34px]`} inputmode="numeric" maxlength="2" placeholder="MM"
           value={m} onInput={e => set("m", e.currentTarget.value)} />
