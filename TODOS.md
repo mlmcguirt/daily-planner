@@ -59,7 +59,15 @@ afterwards, on its own, with `npm run test:e2e` running.
 
 ---
 
-## Reconcile the theme colour
+## ~~Reconcile the theme colour~~ — DONE
+
+**Fixed 2026-07-15, folded into the band-colour change.** The band moved from cream
+`#f7efdd` to soft legal-pad `#f5eec2`, and all three now agree on it: `--color-backdrop`,
+`index.html`'s `theme-color`, and both manifests' `theme_color` (production was the grey
+`#4a4a4a`; the demo already matched the band). The browser and installed-PWA frames no
+longer contradict each other or the sheet.
+
+**Original note —**
 
 **What:** `index.html:7` sets `theme-color` to `#f7efdd` (the cream border).
 `public/manifest.json` sets `theme_color` to `#4a4a4a` (grey). They disagree.

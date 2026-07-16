@@ -12,7 +12,7 @@
 
 @theme {
   --color-paper: #ffffff;      /* the sheet */
-  --color-backdrop: #f7efdd;   /* cream band around it */
+  --color-backdrop: #f5eec2;   /* soft legal-pad band around it */
   --color-ink: #2e2e2e;        /* the writing */
   --color-stripe: #f2f2f2;     /* zebra rows in the checklist */
   --color-line: #cfcfcf;       /* hairlines under to-do rows */

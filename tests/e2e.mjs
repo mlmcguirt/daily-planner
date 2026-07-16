@@ -81,7 +81,7 @@ check("handwriting on to-do text", look.todo.includes("Caveat"), look.todo);
 check("heading stays serif", !look.heading.includes("Caveat"), look.heading);
 check("button stays serif", !look.button.includes("Caveat"), look.button);
 check("sheet is white", look.paper === "rgb(255, 255, 255)", look.paper);
-check("backdrop is cream", look.backdrop === "rgb(247, 239, 221)", look.backdrop);
+check("backdrop is soft legal-pad", look.backdrop === "rgb(245, 238, 194)", look.backdrop);
 check("Caveat font actually loaded", await page.evaluate(() => document.fonts.check("16px Caveat")));
 
 // The date is filled in by hand, so it's handwriting like everything else you type. The
