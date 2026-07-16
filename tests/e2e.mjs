@@ -84,6 +84,15 @@ check("sheet is white", look.paper === "rgb(255, 255, 255)", look.paper);
 check("backdrop is cream", look.backdrop === "rgb(247, 239, 221)", look.backdrop);
 check("Caveat font actually loaded", await page.evaluate(() => document.fonts.check("16px Caveat")));
 
+// The date is filled in by hand, so it's handwriting like everything else you type. The
+// weekday letters are the printed template, so they stay serif — the deliberate split.
+const header = await page.evaluate(() => ({
+  date: getComputedStyle(document.getElementById("mm")).fontFamily,
+  weekday: getComputedStyle(document.querySelector('.days button[data-idx="0"]')).fontFamily
+}));
+check("handwriting on the date you fill in", header.date.includes("Caveat"), header.date);
+check("weekday labels stay serif (the printed template)", !header.weekday.includes("Caveat"), header.weekday);
+
 // ---------- 3. fits one screen, buttons on the cream ----------
 const fit = await page.evaluate(() => {
   const sheet = document.querySelector(".sheet").getBoundingClientRect();

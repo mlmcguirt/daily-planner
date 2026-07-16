@@ -19,7 +19,11 @@ export function DateHeader({ date, onDateChange }) {
     onDateChange(`${next.y || "0000"}-${(next.m || "00").padStart(2, "0")}-${(next.d || "00").padStart(2, "0")}`);
   };
 
-  const field = "border-0 border-b border-muted bg-transparent p-0 pb-0.5 text-center text-[15px] text-ink outline-none";
+  // The date is the one thing in this header you fill in by hand — so it wears your
+  // handwriting, like everything else you write on the sheet. The weekday letters and the
+  // arrows stay serif on purpose: on a paper planner those are the printed template, and
+  // the date in the box is what you write into it.
+  const field = "hand border-0 border-b border-muted bg-transparent p-0 pb-0.5 text-center text-ink outline-none leading-none";
 
   return (
     <header class="mb-3 flex flex-none flex-wrap items-center justify-between gap-3">
@@ -42,12 +46,17 @@ export function DateHeader({ date, onDateChange }) {
             title={FULL_DAYS[i]}
             disabled={!usable}
             onClick={() => usable && onDateChange(shiftDate(date, i - active))}
-            // The day you're on is BOLD. It used to be a black box with a white letter —
-            // a filled chip sitting on the paper, the heaviest mark on the whole sheet, for
-            // something that is just "you are here". Weight says the same thing in the
-            // page's own voice, and says it more quietly.
-            class={`flex h-[34px] w-[34px] items-center justify-center rounded-lg border-0 bg-transparent text-lg text-ink hover:bg-stripe ${
-              i === active ? "font-bold" : "font-normal"
+            // The day you're on is CIRCLED — a thin ink ring, the way you'd ring the day
+            // on a wall calendar. It used to be a black box with a white letter: a filled
+            // chip, the heaviest mark on the whole sheet, for something that is just "you
+            // are here". Weight alone replaced it but said it too quietly to see. A ring is
+            // the paper-native middle: clearly here, without a slab of ink. The border sits
+            // inside the box (border-box), and every letter carries a same-width transparent
+            // border, so circling one shifts nothing.
+            class={`flex h-[34px] w-[34px] items-center justify-center bg-transparent text-lg text-ink hover:bg-stripe ${
+              i === active
+                ? "rounded-full border-[1.5px] border-ink font-bold"
+                : "rounded-lg border-[1.5px] border-transparent font-normal"
             } ${usable ? "cursor-pointer" : "cursor-default opacity-40"}`}
           >
             {label}
@@ -72,13 +81,13 @@ export function DateHeader({ date, onDateChange }) {
           </button>
         )}
         <StepButton id="prevDay" label="Previous day" date={date} onDateChange={onDateChange} by={-1}>‹</StepButton>
-        <input id="mm" class={`${field} w-[34px]`} inputmode="numeric" maxlength="2" placeholder="MM"
+        <input id="mm" class={`${field} w-[36px]`} inputmode="numeric" maxlength="2" placeholder="MM"
           value={m} onInput={e => set("m", e.currentTarget.value)} />
-        <span class="text-muted">/</span>
-        <input id="dd" class={`${field} w-[34px]`} inputmode="numeric" maxlength="2" placeholder="DD"
+        <span class="hand text-faded">/</span>
+        <input id="dd" class={`${field} w-[36px]`} inputmode="numeric" maxlength="2" placeholder="DD"
           value={d} onInput={e => set("d", e.currentTarget.value)} />
-        <span class="text-muted">/</span>
-        <input id="yy" class={`${field} w-[52px]`} inputmode="numeric" maxlength="4" placeholder="YYYY"
+        <span class="hand text-faded">/</span>
+        <input id="yy" class={`${field} w-[58px]`} inputmode="numeric" maxlength="4" placeholder="YYYY"
           value={y} onInput={e => set("y", e.currentTarget.value)} />
         <StepButton id="nextDay" label="Next day" date={date} onDateChange={onDateChange} by={1}>›</StepButton>
       </div>
