@@ -1081,6 +1081,42 @@ await page.waitForTimeout(400);
 check("tall-viewport: no fade when all 17 rows fit",
   !(await listOverflows()) && !(await page.isVisible(".fade-more")));
 
+// ---------- 28. the selection pill stays on-screen on a narrow phone ----------
+// The pill is the ONLY door to the recurring feature. Its recurring variant is 300px
+// wide, and its `left` was `Math.min(rect.left + 8, innerWidth - width)` with no floor —
+// so below 300px it went negative and the pill slid off the left edge, making the feature
+// unreachable on exactly the device the app says it mostly lives on.
+await api.recurring([{ id: "narrow-r", text: "narrow recurring item", weekdays: [4] }]);  // Fridays
+await page.setViewportSize({ width: 280, height: 720 });
+await page.reload();
+await page.waitForTimeout(1500);
+await setDate(page, "2026-05-01");                 // a Friday — the item merges into the list
+await page.waitForTimeout(1200);
+
+await page.$$eval("#todo-list li input[type=text]", els => {
+  const el = els.find(e => e.value === "narrow recurring item");
+  el.focus();
+  el.setSelectionRange(0, el.value.length);
+  el.dispatchEvent(new Event("select", { bubbles: true }));
+});
+await page.waitForTimeout(400);
+check("pill(narrow): the recurring pill is shown", await page.isVisible("#selectionPill"));
+check("pill(narrow): it is the 300px recurring variant", await page.isVisible("#pillDeleteRecurring"));
+
+const geo = await page.evaluate(() => {
+  const pill = document.getElementById("selectionPill").getBoundingClientRect();
+  const edit = document.getElementById("pillEditRecurring").getBoundingClientRect();
+  return { pillLeft: Math.round(pill.left), pillTop: Math.round(pill.top),
+           editLeft: Math.round(edit.left), editRight: Math.round(edit.right), vw: innerWidth };
+});
+check("pill(narrow): its left edge is on-screen (was negative before)", geo.pillLeft >= 0, JSON.stringify(geo));
+check("pill(narrow): it isn't off the top either", geo.pillTop >= 0, JSON.stringify(geo));
+check("pill(narrow): the first action is fully reachable", geo.editLeft >= 0 && geo.editRight <= geo.vw,
+  JSON.stringify(geo));
+
+await page.setViewportSize({ width: 1280, height: 900 });
+await api.recurring([]);
+
 await browser.close();
 
 const bad = results.filter(r => !r.pass);

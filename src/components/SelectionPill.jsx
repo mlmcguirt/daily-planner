@@ -9,11 +9,21 @@ export function SelectionPill({ sel, onDelete, onMakeRecurring, onEditRecurring,
   // can only be made recurring — offering both at once would be nonsense.
   const isRecurring = !!sel.rid;
 
-  // Anchored just above the field the selection is in. Clamped so it can't run off
-  // the top of the window or past the right edge.
-  const top = Math.max(6, sel.rect.top - 38);
+  // Anchored to the selection, but kept wholly on-screen — this pill is the only door to
+  // the recurring feature, so a phone that pushes it off the edge makes that feature
+  // unreachable. The recurring variant is 300px wide; on a narrow viewport its left used
+  // to go negative (Math.min with no floor) and it slid off the left edge.
+  const MARGIN = 8;
   const width = isRecurring ? 300 : 210;
-  const left = Math.min(sel.rect.left + 8, window.innerWidth - width);
+
+  // Horizontal: track the selection's left, but never past either edge.
+  const left = Math.max(MARGIN, Math.min(sel.rect.left + MARGIN, window.innerWidth - width - MARGIN));
+
+  // Vertical: sit above the field when there's room; otherwise below it. Clamping to the
+  // top edge (the old Math.max(6, …)) parked the pill ON TOP of a selection near the top
+  // of the screen — hiding the very text it acts on.
+  const above = sel.rect.top - 38;
+  const top = above >= MARGIN ? above : sel.rect.bottom + MARGIN;
 
   return (
     <div
