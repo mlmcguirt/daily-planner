@@ -1212,6 +1212,57 @@ check("move: never offered on a recurring row",
   (await page.isVisible("#pillDeleteRecurring")) && !(await page.isVisible("#pillMoveToToday")));
 await api.recurring([]);
 
+// ---------- 31. the week strip stays put while the page scrolls ----------
+// A phone scrolls the PAGE (the sheet is as tall as its contents there, not one screen),
+// and the date and the M–S strip went with it — leaving you scrolling a sheet with no
+// sign of which day you were on. It now sticks, parked under the toolbar, which is itself
+// sticky on a phone: the two must not overlap, and the strip has to be opaque or the
+// checklist shows through it.
+await api.put("2026-02-18", {
+  day: 2, blocks: { morning: "gym, then dentist", afternoon: "school run", evening: "read", notes: "milk" },
+  todos: Array.from({ length: 8 }, (_, i) => ({ checked: false, text: `line ${i + 1}` }))
+});
+await page.setViewportSize({ width: 390, height: 700 });
+await page.reload();
+await page.waitForTimeout(1500);
+await setDate(page, "2026-02-18");                 // a Wednesday
+await page.waitForTimeout(1200);
+
+const strip = () => page.evaluate(() => {
+  const h = document.querySelector(".sheet > header").getBoundingClientRect();
+  const t = document.querySelector(".toolbar").getBoundingClientRect();
+  const day = document.querySelector('[aria-current="date"]')?.getBoundingClientRect();
+  return {
+    headerTop: Math.round(h.top), toolbarBottom: Math.round(t.bottom),
+    dayTop: day ? Math.round(day.top) : null, dayBottom: day ? Math.round(day.bottom) : null,
+    scrolls: document.documentElement.scrollHeight > innerHeight + 1,
+    y: Math.round(scrollY), vh: innerHeight
+  };
+});
+
+check("sticky: the page really does scroll on a phone", (await strip()).scrolls, JSON.stringify(await strip()));
+
+await page.evaluate(() => scrollTo(0, 600));
+await page.waitForTimeout(300);
+const stuck = await strip();
+check("sticky: the page moved", stuck.y > 200, JSON.stringify(stuck));
+check("sticky: the day you're on is still on screen",
+  stuck.dayTop >= 0 && stuck.dayBottom <= stuck.vh, JSON.stringify(stuck));
+check("sticky: it parks under the toolbar rather than behind it",
+  stuck.headerTop === stuck.toolbarBottom, JSON.stringify(stuck));
+check("sticky: it is opaque — the checklist doesn't show through it",
+  await page.evaluate(() => {
+    const h = document.querySelector(".sheet > header").getBoundingClientRect();
+    return !!document.elementFromPoint(h.left + h.width / 2, h.bottom - 4)?.closest("header");
+  }));
+
+// Desktop has nothing to stick to — the sheet is exactly one screen there and the
+// checklist scrolls inside itself — so the rule is scoped to phones and must stay that way.
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.waitForTimeout(600);
+check("sticky: not applied on a desktop screen, where the page never scrolls",
+  (await page.$eval(".sheet > header", el => getComputedStyle(el).position)) === "static");
+
 await browser.close();
 
 const bad = results.filter(r => !r.pass);

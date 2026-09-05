@@ -29,6 +29,23 @@ export function Toolbar({ carry, status, undo, onUndo, onSearch, onRecurring, on
 
   const act = fn => () => { setOpen(false); fn(); };
 
+  // On a phone this bar is sticky, and the sheet's date header sticks directly under it —
+  // so the header needs to know how tall it is. That is not a constant: the status line
+  // wraps, and a carry-over offer or an Undo appears and disappears. A number typed into
+  // the stylesheet would be right until the first time one of those showed up. So publish
+  // the measured height and let CSS read it.
+  const barRef = useRef(null);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const publish = () =>
+      document.documentElement.style.setProperty("--toolbar-h", `${Math.round(el.getBoundingClientRect().height)}px`);
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const secondary = open
     ? "contents max-md:absolute max-md:right-3 max-md:top-[calc(100%+6px)] max-md:z-20 max-md:flex " +
       "max-md:w-max max-md:flex-col max-md:items-stretch max-md:gap-1 max-md:rounded-lg max-md:border " +
@@ -36,7 +53,7 @@ export function Toolbar({ carry, status, undo, onUndo, onSearch, onRecurring, on
     : "contents max-md:hidden";
 
   return (
-    <div class="toolbar fixed inset-x-0 top-0 z-5 flex h-[var(--border)] items-center justify-end gap-2 overflow-x-auto px-[var(--border)] max-md:sticky max-md:h-auto max-md:justify-start max-md:overflow-visible max-md:bg-backdrop max-md:px-4 max-md:py-2.5">
+    <div ref={barRef} class="toolbar fixed inset-x-0 top-0 z-5 flex h-[var(--border)] items-center justify-end gap-2 overflow-x-auto px-[var(--border)] max-md:sticky max-md:h-auto max-md:justify-start max-md:overflow-visible max-md:bg-backdrop max-md:px-4 max-md:py-2.5">
       <span
         id="status"
         class={`mr-auto flex-none whitespace-nowrap pr-3 text-[13px] max-md:order-last max-md:mr-0 max-md:ml-auto max-md:pr-0 max-md:pl-3 ${
