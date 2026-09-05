@@ -23,7 +23,9 @@ const check = (name, pass, detail = "") => {
   console.log(`${pass ? "PASS" : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`);
 };
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+// playwright-core ships no browser of its own, so this drives an installed one.
+// Edge by default; PLANNER_BROWSER=chrome (or any channel) for a machine without it.
+const browser = await chromium.launch({ channel: process.env.PLANNER_BROWSER || "msedge", headless: true });
 
 // ---------------------------------------------------------------- upgrade path
 {

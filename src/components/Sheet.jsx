@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "preact/hooks";
-import { BLOCKS, MAX_TODO_ROWS } from "../lib/day.js";
+import { BLOCKS, MAX_TODO_ROWS, todayStr } from "../lib/day.js";
 import { DateHeader } from "./DateHeader.jsx";
 import { SelectionPill } from "./SelectionPill.jsx";
 
@@ -45,7 +45,7 @@ function Block({ name, value, onChange, onSelect }) {
 // Reordering uses Pointer Events, not HTML5 drag-and-drop, because the latter does
 // nothing on a touchscreen — and this planner mostly lives on a phone. The grip is a
 // separate handle so dragging never fights with selecting text in the row.
-function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, onAddRow }) {
+function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, onAddRow, canMove }) {
   const listRef = useRef(null);
   const [dragging, setDragging] = useState(null);
   const [moreBelow, setMoreBelow] = useState(false);
@@ -242,7 +242,7 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, on
                 type="button"
                 class="row-menu"
                 aria-label={`Options for "${t.text.trim()}"`}
-                title="Make recurring, or delete"
+                title={canMove ? "Move to today, make recurring, or delete" : "Make recurring, or delete"}
                 onPointerDown={e => e.stopPropagation()}   // don't let Sheet's outside-click drop the selection we're about to set
                 onClick={e => onRowMenu(i, e.currentTarget)}
               >
@@ -260,7 +260,7 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, on
   );
 }
 
-export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMakeRecurring, onEditRecurring, onDeleteRecurring }) {
+export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMakeRecurring, onEditRecurring, onDeleteRecurring, onMoveToToday }) {
   const [sel, setSel] = useState(null);
 
   const setBlock = (name, value) =>
@@ -293,6 +293,9 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
       ...where,
       start, end,
       text,
+      // Moving a row is about the row, not a phrase inside it — so the pill only offers
+      // it when the highlight covers the whole line, which is what the ⋯ menu sets.
+      whole: where.kind === "todo" && start === 0 && end === el.value.length,
       rid: ridFor(where, text),
       rect: el.getBoundingClientRect()
     });
@@ -311,6 +314,7 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
       start: 0,
       end: todo.text.length,
       text,
+      whole: true,
       rid: todo.rid,
       rect: el.getBoundingClientRect()
     });
@@ -357,6 +361,19 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
     setSel(null);
   };
 
+  // A whole line, on a day that isn't today, can be sent to today's sheet.
+  //
+  // A recurring row is deliberately excluded: it belongs to the weekday, not to the day.
+  // Blanking it here would only have the merge write it straight back on the next render
+  // — a button that visibly does nothing. Stopping it repeating is the pill's other job.
+  const canMoveToToday = !!sel && sel.kind === "todo" && sel.whole && !sel.rid && date !== todayStr();
+
+  const moveToToday = () => {
+    if (!canMoveToToday) return;
+    onMoveToToday(sel.index);
+    setSel(null);
+  };
+
   const editRecurring = () => {
     if (!sel?.rid) return;
     onEditRecurring(sel.rid);
@@ -382,6 +399,7 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
           onReorder={todos => onChange({ ...day, todos })}
           onSelect={onSelect}
           onRowMenu={openRowMenu}
+          canMove={date !== todayStr()}
           // Writing past the bottom of the page adds a line to it.
           onAddRow={() => onChange({ ...day, todos: [...day.todos, { checked: false, text: "" }] })}
         />
@@ -389,6 +407,7 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
 
       <SelectionPill
         sel={sel}
+        onMoveToToday={canMoveToToday ? moveToToday : null}
         onDelete={deleteSelection}
         onMakeRecurring={makeRecurring}
         onEditRecurring={editRecurring}

@@ -141,13 +141,19 @@ export const carryOverItems = prev =>
     .filter(t => t && !t.checked && t.text && t.text.trim() && !t.rid)
     .map(t => t.text.trim());
 
-export function addCarried(data, items) {
+// Put rows on a day's checklist, each in the first free ruled line, growing the list
+// only when there is no free line left. Carry-over and "move to today" both land items
+// on a sheet the same way, so the rule lives in one place.
+export function placeTodos(data, rows) {
   const todos = data.todos.map(t => ({ ...t }));
   const isEmpty = t => !t.rid && !t.text.trim() && !t.checked;
-  for (const text of items) {
+  for (const row of rows) {
     let slot = todos.findIndex(isEmpty);
     if (slot === -1) { todos.push({ checked: false, text: "" }); slot = todos.length - 1; }
-    todos[slot] = { checked: false, text };
+    todos[slot] = { ...row };
   }
   return { ...data, todos };
 }
+
+export const addCarried = (data, items) =>
+  placeTodos(data, items.map(text => ({ checked: false, text })));

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "preact/hooks";
 import { createSync } from "./lib/sync.js";
 import {
   DATE_RE, todayStr, weekdayOf, shiftDate, normalize, emptyDay,
-  mergeRecurring, pruneRecurring, isUntouched, carryOverItems, addCarried
+  mergeRecurring, pruneRecurring, isUntouched, carryOverItems, addCarried, placeTodos
 } from "./lib/day.js";
 import { PassphraseGate } from "./components/PassphraseGate.jsx";
 import { Sheet } from "./components/Sheet.jsx";
@@ -137,6 +137,39 @@ function Planner({ passphrase, onSignOut }) {
     const next = addCarried(day, carry.items);
     setCarry(null);
     change(next);
+  };
+
+  // Send an unfinished line to today's sheet, from a day you have walked away from.
+  //
+  // This is the only place the app writes to a day it is not showing, and it goes
+  // through the outbox exactly as an on-screen edit does — so offline, the move queues
+  // for both dates and lands on reconnect, with neither half lost.
+  //
+  // Today's copy is read the way load() reads one: an unsent edit first (fresher than
+  // anything on the server), then the server, then the local cache. Reaching for the
+  // cache first would base the write on a version another device has already moved
+  // past, and turn an ordinary move into a conflict dialog.
+  const moveToToday = async index => {
+    const today = todayStr();
+    if (date === today) return;
+    const from = day.todos[index];
+    const text = (from?.text || "").trim();
+    if (!text) return;
+
+    let target = s.queuedDay(today);
+    if (!target) {
+      const res = await s.fetchDay(today);
+      target = res.ok ? res.data : s.localDay(today);
+    }
+
+    // It arrives as the same item, tick and all — this moves a line, it doesn't make
+    // a fresh one. Recurring rows never get here (see Sheet), so no rid travels with it.
+    s.enqueue(today, placeTodos(normalize(target, weekdayOf(today)), [{ checked: !!from.checked, text }]));
+    s.flush();
+
+    // The line it left goes blank rather than away: these are 17 ruled lines, and a
+    // move must not shuffle the ones below it up the page.
+    change({ ...day, todos: day.todos.map((t, j) => (j === index ? { checked: false, text: "" } : t)) });
   };
 
   const doClear = () => {
@@ -310,6 +343,7 @@ function Planner({ passphrase, onSignOut }) {
           setDialog("recurring");
         }}
         onDeleteRecurring={stopRecurring}
+        onMoveToToday={moveToToday}
       />
 
       {dialog === "search" && (

@@ -23,7 +23,9 @@ const status = pg => pg.textContent("#status");
 const todoTexts = pg =>
   pg.$$eval("#todo-list li input[type=text]", els => els.map(e => e.value).filter(Boolean));
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+// playwright-core ships no browser of its own, so this drives an installed one.
+// Edge by default; PLANNER_BROWSER=chrome (or any channel) for a machine without it.
+const browser = await chromium.launch({ channel: process.env.PLANNER_BROWSER || "msedge", headless: true });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const page = await ctx.newPage();
 

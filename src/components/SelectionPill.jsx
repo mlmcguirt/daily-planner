@@ -2,7 +2,7 @@
 //
 // onMouseDown must preventDefault: clicking a button would otherwise blur the field
 // and wipe the selection before the click ever lands.
-export function SelectionPill({ sel, onDelete, onMakeRecurring, onEditRecurring, onDeleteRecurring }) {
+export function SelectionPill({ sel, onDelete, onMakeRecurring, onEditRecurring, onDeleteRecurring, onMoveToToday }) {
   if (!sel) return null;
 
   // Something already recurring gets Edit / Delete recurring / Delete. Anything else
@@ -14,7 +14,9 @@ export function SelectionPill({ sel, onDelete, onMakeRecurring, onEditRecurring,
   // unreachable. The recurring variant is 300px wide; on a narrow viewport its left used
   // to go negative (Math.min with no floor) and it slid off the left edge.
   const MARGIN = 8;
-  const width = isRecurring ? 300 : 210;
+  // Three widths, because the pill now has three shapes. Measured, not guessed — reading
+  // low here is what once slid it off the left edge of a phone.
+  const width = isRecurring ? 300 : onMoveToToday ? 310 : 210;
 
   // Horizontal: track the selection's left, but never past either edge.
   const left = Math.max(MARGIN, Math.min(sel.rect.left + MARGIN, window.innerWidth - width - MARGIN));
@@ -33,6 +35,22 @@ export function SelectionPill({ sel, onDelete, onMakeRecurring, onEditRecurring,
       onMouseDown={e => e.preventDefault()}
       onPointerDown={e => e.preventDefault()}
     >
+      {/* A line you wrote on a day that has been and gone still has to happen. Rather than
+          retyping it onto today's sheet, send it there. Offered first: it is the reason
+          you opened this menu on an old day at all. */}
+      {onMoveToToday && (
+        <>
+          <button
+            id="pillMoveToToday"
+            type="button"
+            onClick={onMoveToToday}
+            class="rounded-full px-3 py-1 text-[13px] text-ink hover:bg-stripe"
+          >
+            Move to today
+          </button>
+          <span class="h-4 w-px bg-line" />
+        </>
+      )}
       {isRecurring ? (
         <>
           <button

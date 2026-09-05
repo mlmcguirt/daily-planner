@@ -54,7 +54,9 @@ const outbox = pg => pg.evaluate(k => JSON.parse(localStorage.getItem(`planner:o
 const todoTexts = pg =>
   pg.$$eval("#todo-list li input[type=text]", els => els.map(e => e.value).filter(Boolean));
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+// playwright-core ships no browser of its own, so this drives an installed one.
+// Edge by default; PLANNER_BROWSER=chrome (or any channel) for a machine without it.
+const browser = await chromium.launch({ channel: process.env.PLANNER_BROWSER || "msedge", headless: true });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 let page = await ctx.newPage();
 
@@ -1150,6 +1152,64 @@ check("export: it contains the recurring list",
   dump.recurring.some(r => r.id === "exp-r" && Array.isArray(r.weekdays) && r.weekdays.includes(2)),
   JSON.stringify(dump.recurring));
 
+await api.recurring([]);
+
+// ---------- 30. moving a to-do to today ----------
+// A day that has been and gone still has unfinished lines on it, and the only way to act
+// on one was to retype it onto today's sheet. The row's ⋯ menu now sends it there: one
+// write to today, one to the day it came from, both through the same outbox as any edit.
+const moveDate = "2026-02-17";                                    // a Tuesday, long gone
+await api.put(moveDate, {
+  day: 1, blocks: {},
+  todos: [{ checked: false, text: "ring the plumber" }, { checked: false, text: "stays put" }]
+});
+await api.put(today, { day: 0, blocks: {}, todos: [] });          // today starts empty
+await page.reload();
+await page.waitForTimeout(1500);
+await setDate(page, moveDate);
+await page.waitForTimeout(1500);
+
+await page.click("#todo-list li:nth-child(1) .row-menu");
+await page.waitForTimeout(400);
+check("move: the ⋯ menu offers it on a day that isn't today", await page.isVisible("#pillMoveToToday"));
+
+await page.click("#pillMoveToToday");
+await page.waitForTimeout(1500);
+check("move: the line leaves the day it was on",
+  !(await todoTexts(page)).includes("ring the plumber"), JSON.stringify(await todoTexts(page)));
+check("move: the rest of the list stays where it was",
+  (await todoTexts(page)).includes("stays put"), JSON.stringify(await todoTexts(page)));
+check("move: the departure reaches the server",
+  !((await api.get(moveDate)).data?.todos || []).some(t => t.text === "ring the plumber"),
+  JSON.stringify((await api.get(moveDate)).data?.todos));
+check("move: and it arrives on today, in D1",
+  ((await api.get(today)).data?.todos || []).some(t => t.text === "ring the plumber"),
+  JSON.stringify((await api.get(today)).data?.todos));
+
+await page.click("#todayBtn");
+await page.waitForTimeout(1500);
+check("move: it is on today's sheet", (await todoTexts(page)).includes("ring the plumber"),
+  JSON.stringify(await todoTexts(page)));
+
+// On today there is nowhere to send it, so the option isn't drawn.
+const rowWith = text =>
+  page.$$eval("#todo-list li input[type=text]", (els, t) => els.findIndex(e => e.value === t) + 1, text);
+await page.click(`#todo-list li:nth-child(${await rowWith("ring the plumber")}) .row-menu`);
+await page.waitForTimeout(400);
+check("move: not offered when you are already on today",
+  (await page.isVisible("#selectionPill")) && !(await page.isVisible("#pillMoveToToday")));
+
+// A recurring row belongs to the weekday, not to the day. Moving it would blank the line
+// and the merge would write it straight back — so that row gets Edit / Stop, and no Move.
+await api.recurring([{ id: "mv-rec", text: "water the plants", weekdays: [1] }]);   // Tuesday
+await page.reload();
+await page.waitForTimeout(1500);
+await setDate(page, moveDate);
+await page.waitForTimeout(1500);
+await page.click(`#todo-list li:nth-child(${await rowWith("water the plants")}) .row-menu`);
+await page.waitForTimeout(400);
+check("move: never offered on a recurring row",
+  (await page.isVisible("#pillDeleteRecurring")) && !(await page.isVisible("#pillMoveToToday")));
 await api.recurring([]);
 
 await browser.close();
