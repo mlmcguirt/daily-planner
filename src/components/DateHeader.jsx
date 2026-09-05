@@ -33,35 +33,61 @@ export function DateHeader({ date, onDateChange }) {
           weekday you're on: Wednesday -> the previous Wednesday. */}
       <div class="days flex items-center gap-1">
         <StepButton id="prevWeek" label="Previous week" date={date} onDateChange={onDateChange} by={-7}>‹</StepButton>
-        {DAY_LABELS.map((label, i) => (
-          <button
-            key={i}
-            type="button"
-            data-idx={i}
-            aria-label={`Go to ${FULL_DAYS[i]} of this week`}
-            // The day you're on, said out loud rather than only drawn. A screen reader now
-            // announces it, and the tests can ask which day is current without knowing what
-            // it happens to look like this week.
-            aria-current={i === active ? "date" : undefined}
-            title={FULL_DAYS[i]}
-            disabled={!usable}
-            onClick={() => usable && onDateChange(shiftDate(date, i - active))}
-            // The day you're on is CIRCLED — a thin ink ring, the way you'd ring the day
-            // on a wall calendar. It used to be a black box with a white letter: a filled
-            // chip, the heaviest mark on the whole sheet, for something that is just "you
-            // are here". Weight alone replaced it but said it too quietly to see. A ring is
-            // the paper-native middle: clearly here, without a slab of ink. The border sits
-            // inside the box (border-box), and every letter carries a same-width transparent
-            // border, so circling one shifts nothing.
-            class={`flex h-[34px] w-[34px] items-center justify-center bg-transparent text-lg text-ink hover:bg-stripe ${
-              i === active
-                ? "rounded-full border-[1.5px] border-ink font-bold"
-                : "rounded-lg border-[1.5px] border-transparent font-normal"
-            } ${usable ? "cursor-pointer" : "cursor-default opacity-40"}`}
-          >
-            {label}
-          </button>
-        ))}
+        {DAY_LABELS.map((label, i) => {
+          // Which real date this letter points at — the same arithmetic clicking it uses,
+          // so the mark can never disagree with where the button goes. It is a date
+          // comparison, not a weekday one, on purpose: page back to March and the T in
+          // the strip is a Tuesday in March, not today. Marking it would be a lie, and
+          // the absence of the dot is itself the useful answer — you are not in this
+          // week. The Today button, which appears the moment you leave today, is the
+          // way back.
+          const isToday = usable && shiftDate(date, i - active) === today;
+          return (
+            // The dot rides UNDER the letter, in its own reserved strip — not inside the
+            // button. Tucked in at the foot of the box it read as a full stop stuck to the
+            // letter, and inside the ring on the day you have open (which is most days) the
+            // two marks fought. Out here they are plainly two facts: the circle is the day
+            // you are looking at, the dot is today.
+            <div key={i} class="flex flex-col items-center">
+              <button
+                type="button"
+                data-idx={i}
+                data-today={isToday || undefined}
+                // Said out loud, not only drawn — the dot is invisible to a screen reader.
+                aria-label={`Go to ${FULL_DAYS[i]} of this week${isToday ? " (today)" : ""}`}
+                // The day you're on, said out loud rather than only drawn. A screen reader now
+                // announces it, and the tests can ask which day is current without knowing what
+                // it happens to look like this week.
+                aria-current={i === active ? "date" : undefined}
+                title={isToday ? `${FULL_DAYS[i]} — today` : FULL_DAYS[i]}
+                disabled={!usable}
+                onClick={() => usable && onDateChange(shiftDate(date, i - active))}
+                // The day you're on is CIRCLED — a thin ink ring, the way you'd ring the day
+                // on a wall calendar. It used to be a black box with a white letter: a filled
+                // chip, the heaviest mark on the whole sheet, for something that is just "you
+                // are here". Weight alone replaced it but said it too quietly to see. A ring is
+                // the paper-native middle: clearly here, without a slab of ink. The border sits
+                // inside the box (border-box), and every letter carries a same-width transparent
+                // border, so circling one shifts nothing.
+                class={`day-letter flex h-[34px] w-[34px] items-center justify-center bg-transparent text-lg text-ink hover:bg-stripe ${
+                  i === active
+                    ? "rounded-full border-[1.5px] border-ink font-bold"
+                    : "rounded-lg border-[1.5px] border-transparent font-normal"
+                } ${usable ? "cursor-pointer" : "cursor-default opacity-40"}`}
+              >
+                {label}
+              </button>
+              {/* Always drawn, only sometimes inked: reserving the space means today arriving
+                  at midnight, or paging into another week, never nudges the letters sideways
+                  or the sheet downwards. aria-hidden because the button's label already says
+                  the word — a dot is nothing to a screen reader. */}
+              <span
+                class={`today-dot mt-[3px] h-[4px] w-[4px] rounded-full ${isToday ? "bg-ink" : "bg-transparent"}`}
+                aria-hidden="true"
+              />
+            </div>
+          );
+        })}
         <StepButton id="nextWeek" label="Next week" date={date} onDateChange={onDateChange} by={7}>›</StepButton>
       </div>
       <div class="flex items-center gap-1.5">

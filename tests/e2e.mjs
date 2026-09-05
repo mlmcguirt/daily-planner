@@ -1263,6 +1263,57 @@ await page.waitForTimeout(600);
 check("sticky: not applied on a desktop screen, where the page never scrolls",
   (await page.$eval(".sheet > header", el => getComputedStyle(el).position)) === "static");
 
+// ---------- 32. today is marked in the week strip ----------
+// The circle says which day you have OPEN. Nothing said which one is TODAY — so a sheet
+// from last Tuesday looked exactly like today's, and the strip you navigate by told you
+// nothing about where you actually were in the week. A dot under the letter says it.
+const strips = () => page.$$eval(".days button[data-idx]", els =>
+  els.map(e => ({
+    i: Number(e.dataset.idx),
+    today: e.hasAttribute("data-today"),
+    open: e.getAttribute("aria-current") === "date"
+  })));
+
+const todayIdx = (new Date(`${today}T00:00`).getDay() + 6) % 7;
+const monday = new Date(`${today}T00:00`);
+monday.setDate(monday.getDate() - todayIdx);
+const mondayStr = `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
+
+await setDate(page, today);
+await page.waitForTimeout(1200);
+let strip32 = await strips();
+check("today-dot: exactly one letter is marked", strip32.filter(d => d.today).length === 1,
+  JSON.stringify(strip32));
+check("today-dot: it is the right weekday", strip32.find(d => d.today)?.i === todayIdx,
+  JSON.stringify({ marked: strip32.find(d => d.today)?.i, todayIdx }));
+check("today-dot: on today, the dot and the circle are the same letter",
+  strip32.find(d => d.today)?.open === true, JSON.stringify(strip32));
+
+// Open another day in the same week: the circle moves, the dot does not.
+await setDate(page, mondayStr);
+await page.waitForTimeout(1200);
+strip32 = await strips();
+check("today-dot: it stays on today when you open another day of the week",
+  strip32.find(d => d.today)?.i === todayIdx, JSON.stringify(strip32));
+check("today-dot: and the circle has moved to the day you opened",
+  strip32.find(d => d.open)?.i === 0, JSON.stringify(strip32));
+
+// A week that doesn't contain today gets no dot at all. The letters there are a Monday
+// in March, not today — marking one would be a lie, and its absence is the useful answer.
+await setDate(page, "2026-03-10");
+await page.waitForTimeout(1200);
+check("today-dot: no dot in a week that isn't this one",
+  !(await strips()).some(d => d.today), JSON.stringify(await strips()));
+
+// It doesn't print: the circled day stays true forever, "today" only while the ink is wet.
+await setDate(page, today);
+await page.waitForTimeout(1200);
+await page.emulateMedia({ media: "print" });
+await page.waitForTimeout(300);
+check("today-dot: not printed",
+  (await page.$eval(".today-dot", el => getComputedStyle(el).display)) === "none");
+await page.emulateMedia({ media: null });
+
 await browser.close();
 
 const bad = results.filter(r => !r.pass);

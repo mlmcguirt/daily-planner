@@ -387,4 +387,9 @@ textarea,
 
   /* Ticked boxes and the day marker are solid fills; browsers drop those by default. */
   .tick, .days span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* The today dot does not print. The circled day is a fact about the sheet and stays
+     true forever; "today" is true only while the ink is wet, and a printed page lives
+     on the fridge until Friday. */
+  .today-dot { display: none !important; }
 }
