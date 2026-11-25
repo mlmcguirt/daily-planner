@@ -1391,6 +1391,19 @@ check("one-column: an old Morning recurring item lands on the checklist",
   (await todoTexts(page)).includes("Old morning habit"), JSON.stringify(await todoTexts(page)));
 await api.recurring([]);
 
+// ---------- 34. show this device's passphrase ----------
+// So a second device can be signed into the same planner instead of a new, empty one.
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.reload();
+await page.waitForTimeout(1200);
+let shownKey = "";
+page.once("dialog", async d => { shownKey = d.message(); await d.accept(); });
+await page.click("#showKeyBtn");
+await page.waitForTimeout(400);
+check("show-passphrase: it shows this device's passphrase", shownKey.includes(PASS), JSON.stringify(shownKey));
+check("show-passphrase: and its length, so a stray space shows up",
+  shownKey.includes(`${PASS.length} characters`), JSON.stringify(shownKey));
+
 await browser.close();
 
 const bad = results.filter(r => !r.pass);

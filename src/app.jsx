@@ -310,6 +310,18 @@ function Planner({ passphrase, onSignOut }) {
     change(next);        // persist the claim, or a reload would duplicate it
   };
 
+  // Show this device's passphrase, so another device can be signed into the SAME planner.
+  // A mistyped passphrase silently opens a different, empty planner (see PassphraseGate),
+  // and until now there was no way to find out what a working device was using. The
+  // length is shown too, because a stray space is invisible and is exactly the mistake.
+  const doShowKey = () => {
+    alert(
+      `This planner's passphrase is:\n\n${passphrase}\n\n` +
+      `(${passphrase.length} characters, capitals and spaces count.) ` +
+      `Type it exactly like this on your other devices to open this same planner.`
+    );
+  };
+
   return (
     <>
       <Toolbar
@@ -323,6 +335,7 @@ function Planner({ passphrase, onSignOut }) {
         onPrint={() => window.print()}
         onRetry={() => s.retryNow()}
         onSignOut={doSignOut}
+        onShowKey={doShowKey}
       />
 
       <Sheet
