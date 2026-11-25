@@ -65,7 +65,7 @@ const json = (body, status = 200) =>
 // that the handwriting font works. It is a deliverable, not a fixture.
 //
 // Seeding is PER DATE, not once. app.jsx:29 always opens on todayStr(). Seed a single
-// date and tomorrow a visitor gets a blank sheet — and then app.jsx:83 -> refreshCarry
+// date and tomorrow a visitor gets a blank sheet — and then the old carry-over button
 // -> isUntouched passes on the empty day -> finds yesterday's seed -> renders
 // "Carry over 4 unfinished from 07/12" across an empty planner. The demo would rot in
 // 24 hours, by construction.

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "preact/hooks";
 import { createSync } from "./lib/sync.js";
 import {
   DATE_RE, todayStr, weekdayOf, shiftDate, normalize, emptyDay,
-  mergeRecurring, pruneRecurring, isUntouched, carryOverItems, addCarried, placeTodos
+  mergeRecurring, pruneRecurring, carryInto, CARRY_LOOKBACK, placeTodos
 } from "./lib/day.js";
 import { PassphraseGate } from "./components/PassphraseGate.jsx";
 import { Sheet } from "./components/Sheet.jsx";
@@ -31,7 +31,6 @@ function Planner({ passphrase, onSignOut }) {
   const [recurring, setRecurring] = useState([]);
   const [status, setStatus] = useState(s.status());
   const [conflict, setConflict] = useState(null);
-  const [carry, setCarry] = useState(null);
   const [dialog, setDialog] = useState(null);   // "search" | "recurring"
   const [undo, setUndo] = useState(null);       // the day as it was just before a Clear, so it can be taken back
   const [prefill, setPrefill] = useState(null); // a highlighted phrase, on its way to becoming recurring
@@ -39,6 +38,8 @@ function Planner({ passphrase, onSignOut }) {
   const [adopt, setAdopt] = useState(null);           // the highlighted row/line awaiting its new rid
 
   const saveTimer = useRef(null);
+  const dayRef = useRef(day);
+  dayRef.current = day;
   const dateRef = useRef(date);
   dateRef.current = date;
   // load() is async; by the time the fetch lands the recurring list may have arrived,
@@ -81,7 +82,7 @@ function Planner({ passphrase, onSignOut }) {
     if (res.ok && !s.queuedDay(ds)) {
       setDay(dress(res.data, recurringRef.current, wd));
     }
-    refreshCarry(ds);
+    autoCarry(ds);
   }, []);
 
   useEffect(() => { load(date); }, [date]);
@@ -99,18 +100,32 @@ function Planner({ passphrase, onSignOut }) {
   useEffect(() => { s.flush(); }, []);            // anything stranded from a past session
 
   // ---- carry over ---------------------------------------------------------
-  const refreshCarry = useCallback(async (ds = dateRef.current) => {
-    setCarry(null);
-    // Only offered while today's list is still untouched by you.
-    const current = s.queuedDay(ds) || s.localDay(ds);
-    if (current && !isUntouched(normalize(current, weekdayOf(ds)))) return;
+  // Whatever you didn't tick off on the last day you used is still on today's list.
+  //
+  // Only ever on TODAY: walking back through old days must not rewrite them, and a day
+  // in the future gets its turn when it becomes today. The day remembers it has been
+  // carried into (`carried`), so a line you delete after it arrives stays deleted.
+  //
+  // Each earlier day is read fresh — an unsent edit first, then the server, then this
+  // device's copy — because you may have ticked things off on your phone last night.
+  const freshDay = async ds => {
+    const queued = s.queuedDay(ds);
+    if (queued) return queued;
+    const r = await s.fetchDay(ds);
+    return r.ok ? r.data : s.localDay(ds);
+  };
 
-    const prevDate = shiftDate(ds, -1);
-    const prev = await s.anyDay(prevDate);
-    if (dateRef.current !== ds) return;
-    const items = carryOverItems(prev);
-    if (!items.length) return;
-    setCarry({ count: items.length, from: prevDate.slice(5).replace("-", "/"), items });
+  const autoCarry = useCallback(async ds => {
+    if (ds !== todayStr()) return;
+    for (let back = 1; back <= CARRY_LOOKBACK; back++) {
+      const from = shiftDate(ds, -back);
+      const prev = await freshDay(from);
+      if (dateRef.current !== ds) return;        // you moved to another day meanwhile
+      if (!prev) continue;                       // a day you never opened
+      const next = carryInto(dayRef.current, prev, from);
+      if (next) change(next);
+      return;
+    }
   }, []);
 
   // ---- saving -------------------------------------------------------------
@@ -133,12 +148,6 @@ function Planner({ passphrase, onSignOut }) {
   useEffect(() => { setUndo(null); }, [date]);
 
   // ---- actions ------------------------------------------------------------
-  const doCarry = () => {
-    const next = addCarried(day, carry.items);
-    setCarry(null);
-    change(next);
-  };
-
   // Send an unfinished line to today's sheet, from a day you have walked away from.
   //
   // This is the only place the app writes to a day it is not showing, and it goes
@@ -175,7 +184,9 @@ function Planner({ passphrase, onSignOut }) {
   const doClear = () => {
     if (!confirm("Clear this day's entries?")) return;
     const before = day;                          // exactly what's on the sheet right now
-    change(mergeRecurring(emptyDay(weekdayOf(date)), recurring, weekdayOf(date)), { keepUndo: true });
+    const blank = mergeRecurring(emptyDay(weekdayOf(date)), recurring, weekdayOf(date));
+    // A cleared day stays carried-into: clearing it must not pull yesterday's list back.
+    change(day.carried ? { ...blank, carried: day.carried } : blank, { keepUndo: true });
     setUndo(before);                             // and it stays offered until you leave or write
   };
 
@@ -302,11 +313,9 @@ function Planner({ passphrase, onSignOut }) {
   return (
     <>
       <Toolbar
-        carry={carry}
         status={status}
         undo={undo}
         onUndo={doUndoClear}
-        onCarry={doCarry}
         onSearch={() => setDialog("search")}
         onRecurring={() => setDialog("recurring")}
         onClear={doClear}

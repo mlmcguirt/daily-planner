@@ -42,6 +42,7 @@ The demo fakes the **server**, not the sync layer. That is the whole design: `sr
   - `functions/api/search.js` — `GET /api/search?q=` → dates + snippets. LIKE over the JSON blob; query wildcards escaped, and every row re-checked against real field values so a hit on JSON syntax doesn't count.
   - `functions/api/recurring.js` — `GET`/`PUT` the recurring list (whole-list replace).
 - **DB:** `planner_days (space, day_date, data, updated_at)`, PK `(space, day_date)`; `data` is a JSON blob of the day. `planner_recurring (space, id, text, weekdays, target, created_at)` — weekdays Mon=0..Sun=6, `target` is `todo` or a block name. Recurring items merge into the checklist on matching weekdays and carry a stable `rid` so they can't duplicate; **merging does not save**, so merely viewing a day creates no row.
+- **Carry-over is automatic, and only onto today.** Opening today pulls the unticked, non-recurring to-dos from the last day that has a row (looking back up to 14 days) and saves them, stamping `carried: <from-date>` on today so it happens once, a deleted line stays deleted, and Clear day doesn't re-pull. It never writes to a past or future day just by viewing it, and it saves only when something was actually carried. (Replaced the old "Carry over N unfinished" button, 24 Nov 2026.)
 
 ## File map
 - `index.html` — Vite entry (repo root)

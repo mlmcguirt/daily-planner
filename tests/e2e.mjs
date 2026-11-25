@@ -178,21 +178,74 @@ check("use-theirs: server keeps their version",
   (await api.get("2026-08-20")).data?.blocks?.notes === "theirs again");
 check("use-theirs: no stuck conflict", Object.keys(await outbox(page)).length === 0);
 
-// ---------- 8. carry over unfinished ----------
-await api.put("2026-09-01", {
-  day: 1, blocks: {},
+// ---------- 8. unfinished to-dos carry to today by themselves ----------
+// Whatever isn't ticked off on the last day you used is on today's list when you open
+// it. No button: it just happens, once, and only on today.
+const pad2 = n => String(n).padStart(2, "0");
+const daysAgo = n => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+const todayD = daysAgo(0);
+const todayTexts = async () => ((await api.get(todayD)).data?.todos || []).filter(t => t.text).map(t => t.text);
+
+await api.put(daysAgo(1), {
+  day: 0, blocks: {},
   todos: [{ checked: false, text: "unfinished thing" }, { checked: true, text: "done thing" }]
 });
-await setDate(page, "2026-09-02");
+await page.reload();
+await page.waitForTimeout(800);
+await setDate(page, todayD);
+await page.waitForTimeout(2500);
+let texts = await todayTexts();
+check("carry-over: an unfinished to-do is on today by itself", texts.includes("unfinished thing"), JSON.stringify(texts));
+check("carry-over: a ticked-off one is NOT", !texts.includes("done thing"), JSON.stringify(texts));
+check("carry-over: it's on the screen too", (await todoTexts(page)).includes("unfinished thing"));
+check("carry-over: today remembers it was carried into",
+  (await api.get(todayD)).data?.carried === daysAgo(1), JSON.stringify((await api.get(todayD)).data?.carried));
+check("carry-over: there's no button any more", !(await page.isVisible("#carryBtn")));
+
+// Once only: opening today again doesn't add a second copy.
+await page.reload();
+await page.waitForTimeout(2500);
+texts = await todayTexts();
+check("carry-over: no second copy after reopening",
+  texts.filter(t => t === "unfinished thing").length === 1, JSON.stringify(texts));
+
+// Delete it from today and it stays deleted.
+const carriedRow = (await page.$$eval("#todo-list li input[type=text]", els => els.map(e => e.value))).indexOf("unfinished thing");
+await page.fill(`#todo-list li:nth-child(${carriedRow + 1}) input[type=text]`, "");
 await page.waitForTimeout(1500);
-check("carry-over: button offered", await page.isVisible("#carryBtn"));
-check("carry-over: counts only the unfinished one",
-  (await page.textContent("#carryBtn")).includes("1 unfinished"), await page.textContent("#carryBtn"));
-await page.click("#carryBtn");
-await page.waitForTimeout(1500);
-let texts = ((await api.get("2026-09-02")).data?.todos || []).filter(t => t.text).map(t => t.text);
-check("carry-over: unfinished item copied", texts.includes("unfinished thing"), JSON.stringify(texts));
-check("carry-over: completed item NOT copied", !texts.includes("done thing"), JSON.stringify(texts));
+await page.reload();
+await page.waitForTimeout(2500);
+check("carry-over: a carried line you delete doesn't come back",
+  !(await todayTexts()).includes("unfinished thing"), JSON.stringify(await todayTexts()));
+
+// Never on any other day: looking at an old day must not write to it.
+await api.put(daysAgo(4), { day: 0, blocks: {}, todos: [{ checked: false, text: "older thing" }] });
+await setDate(page, daysAgo(3));
+await page.waitForTimeout(2500);
+check("carry-over: opening a past day doesn't carry into it",
+  !(await api.get(daysAgo(3))).data, JSON.stringify((await api.get(daysAgo(3))).data));
+
+// Skipped days: the list comes from the last day you actually used.
+{
+  const skipPass = PASS + "-skip";
+  const skipH = { "X-Planner-Key": skipPass, "Content-Type": "application/json" };
+  await fetch(`${U}/api/day?date=${daysAgo(3)}`, {
+    method: "PUT", headers: skipH,
+    body: JSON.stringify({ data: { day: 0, blocks: {}, todos: [{ checked: false, text: "from three days ago" }] }, base: null, force: true })
+  });
+  const skipCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await skipCtx.addInitScript(k => localStorage.setItem("planner:key", k), skipPass);
+  const skipPage = await skipCtx.newPage();
+  await skipPage.goto(U);
+  await skipPage.waitForTimeout(3000);
+  check("carry-over: skip a couple of days and the list still comes forward",
+    (await todoTexts(skipPage)).includes("from three days ago"), JSON.stringify(await todoTexts(skipPage)));
+  await skipCtx.close();
+}
 
 // ---------- 9. recurring ----------
 await api.recurring([{ id: "rec-tue", text: "Bins out", weekdays: [1] }]);   // Tuesday

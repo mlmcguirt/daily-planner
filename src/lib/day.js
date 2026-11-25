@@ -45,7 +45,9 @@ export function normalize(data, weekday = 0) {
     day: weekday,
     blocks: { ...base.blocks, ...(data.blocks || {}) },
     todos,
-    applied: Array.isArray(data.applied) ? [...data.applied] : []
+    applied: Array.isArray(data.applied) ? [...data.applied] : [],
+    // The date unfinished to-dos were already carried in from, so it happens once a day.
+    ...(data.carried ? { carried: data.carried } : {})
   };
 }
 
@@ -82,7 +84,7 @@ export function normalizeDay(d) {
     if (last.text || last.checked || last.rid) break;
     todos.pop();
   }
-  return JSON.stringify({ day: d.day, blocks, todos });
+  return JSON.stringify({ day: d.day, blocks, todos, carried: d.carried || "" });
 }
 export const sameDay = (a, b) => normalizeDay(a) === normalizeDay(b);
 
@@ -162,3 +164,18 @@ export function placeTodos(data, rows) {
 
 export const addCarried = (data, items) =>
   placeTodos(data, items.map(text => ({ checked: false, text })));
+
+// How many days back to look for the last day you used. Skip a day or two (or a week's
+// holiday) and your unfinished list still finds its way to today.
+export const CARRY_LOOKBACK = 14;
+
+// Bring the unfinished to-dos from `prev` (the last day you used, `fromDate`) onto today.
+// Anything already on today with the same words is not added twice. Returns null when
+// there is nothing to bring, so merely opening the planner never writes a row.
+export function carryInto(today, prev, fromDate) {
+  if (today.carried) return null;
+  const have = new Set(today.todos.map(t => t.text.trim()).filter(Boolean));
+  const items = carryOverItems(prev).filter(text => !have.has(text));
+  if (!items.length) return null;
+  return { ...addCarried(today, items), carried: fromDate };
+}
