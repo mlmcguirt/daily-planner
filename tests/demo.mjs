@@ -82,7 +82,7 @@ check("demo: a typed to-do survives a reload", (await todoTexts(page)).includes(
 
 // ---------- 5. search works with no server ----------
 await page.click("#searchBtn");
-await page.fill("#searchInput", "dentist");                     // from the seeded morning block
+await page.fill("#searchInput", "dentist");                     // from the seeded notes block
 await page.waitForTimeout(800);
 check("demo: search finds the seeded text",
   (await page.$$("#searchResults li[data-date]")).length > 0);

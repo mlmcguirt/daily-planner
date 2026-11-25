@@ -1,7 +1,9 @@
 // The day model, and pure functions over it. No DOM, no network.
 //
 // Shape (unchanged from the vanilla build — the API and existing saved data depend on it):
-//   { day: 0..6, blocks: {morning, afternoon, evening, notes}, todos: [{checked, text, rid?}] }
+//   { day: 0..6, blocks: {notes}, todos: [{checked, text, rid?}] }
+// Older days may still carry morning/afternoon/evening text. It is kept in the saved data
+// (normalize spreads whatever blocks arrive) but no longer shown.
 // `rid` marks a to-do that came from a recurring item, so it can't be added twice.
 
 // The page has 17 ruled lines. You can write past the bottom of the page — Enter on the
@@ -9,14 +11,18 @@
 // key would otherwise spawn rows until something gave.
 export const TODO_ROWS = 17;
 export const MAX_TODO_ROWS = 60;
-export const BLOCKS = ["morning", "afternoon", "evening", "notes"];
+export const BLOCKS = ["notes"];
+
+// Where a recurring item lands. A target that is no longer a box on the sheet (an old
+// Morning/Afternoon/Evening item) comes back on the checklist instead of vanishing.
+export const targetOf = item => (BLOCKS.includes(item.target) ? item.target : "todo");
 export const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function emptyDay(weekday = 0) {
   return {
     day: weekday,
-    blocks: { morning: "", afternoon: "", evening: "", notes: "" },
+    blocks: { notes: "" },
     todos: Array.from({ length: TODO_ROWS }, () => ({ checked: false, text: "" })),
     // ids of block-targeted recurring items already put on this day. A to-do carries
     // its own `rid`; block text is just prose and can't, so the day remembers instead.
@@ -81,7 +87,7 @@ export function normalizeDay(d) {
 export const sameDay = (a, b) => normalizeDay(a) === normalizeDay(b);
 
 // Put recurring items for this weekday back where they came from — a to-do returns to
-// the checklist, a line from Morning returns to Morning. Pure: returns new data.
+// the checklist, a line from Notes returns to Notes. Pure: returns new data.
 // Never saves — merely opening a day must not create a row in the database.
 export function mergeRecurring(data, recurring, weekday) {
   const todos = data.todos.map(t => ({ ...t }));
@@ -92,7 +98,7 @@ export function mergeRecurring(data, recurring, weekday) {
 
   for (const item of recurring) {
     if (!item.weekdays.includes(weekday)) continue;
-    const target = item.target || "todo";
+    const target = targetOf(item);
 
     if (target === "todo") {
       if (present.has(item.id)) continue;           // the rid keeps it from duplicating
@@ -103,7 +109,6 @@ export function mergeRecurring(data, recurring, weekday) {
       continue;
     }
 
-    if (!BLOCKS.includes(target)) continue;
     if (applied.includes(item.id)) continue;        // already placed on this day
     const current = blocks[target] || "";
     const already = current.split("\n").some(line => line.trim() === item.text.trim());
@@ -119,7 +124,7 @@ export function mergeRecurring(data, recurring, weekday) {
 export function pruneRecurring(data, recurring, weekday) {
   const live = new Set(
     recurring
-      .filter(i => (i.target || "todo") === "todo" && i.weekdays.includes(weekday))
+      .filter(i => targetOf(i) === "todo" && i.weekdays.includes(weekday))
       .map(i => i.id)
   );
   return {

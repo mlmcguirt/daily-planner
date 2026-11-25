@@ -37,7 +37,7 @@ const browser = await chromium.launch({ channel: process.env.PLANNER_BROWSER || 
   await ctx.addInitScript(({ pass }) => {
     const day = {
       day: 2,
-      blocks: { morning: "written on the old build", afternoon: "", evening: "", notes: "" },
+      blocks: { morning: "written on the old build", afternoon: "", evening: "", notes: "old note" },
       todos: [{ checked: false, text: "old todo" }, ...Array.from({ length: 16 }, () => ({ checked: false, text: "" }))]
     };
     localStorage.setItem("planner:key", pass);
@@ -65,7 +65,7 @@ const browser = await chromium.launch({ channel: process.env.PLANNER_BROWSER || 
   await page.fill("#yy", "2026"); await page.fill("#mm", "11"); await page.fill("#dd", "04");
   await page.waitForTimeout(1500);
   check("upgrade: old cached day renders in the new UI",
-    (await page.inputValue('textarea[data-key="morning"]')) === "written on the old build");
+    (await page.inputValue('textarea[data-key="notes"]')) === "old note");
   const todos = await page.$$eval("#todo-list li input[type=text]", els => els.map(e => e.value).filter(Boolean));
   check("upgrade: old to-do survives", todos.includes("old todo"), JSON.stringify(todos));
 

@@ -336,9 +336,9 @@ textarea,
 .print-only { display: none; }
 
 @media print {
-  /* Landscape by default — the sheet is two columns side by side, which is a
-     landscape shape. Portrait squeezed it into a narrow strip. */
-  @page { size: landscape; margin: 10mm; }
+  /* Portrait: the sheet is one column now (Notes over the checklist), which is a
+     portrait shape. Landscape ran the 17 rows onto a second page. */
+  @page { size: portrait; margin: 10mm; }
 
   .toolbar, .overlay, #selectionPill, .grip, .row-menu, #prevDay, #nextDay, .fade-more { display: none !important; }
   /* Nothing sticks to paper. Left sticky, a print engine can repeat or float it. */
@@ -359,17 +359,17 @@ textarea,
     border-radius: 0 !important;
   }
 
-  .grid { gap: 6mm !important; min-height: 0 !important; align-items: start; }
+  .sheet-body { gap: 6mm !important; min-height: 0 !important; }
 
   /* Blocks size to their content instead of sharing out screen height. */
-  #morning, #afternoon, #evening, #notes {
+  #notes {
     flex: 0 0 auto !important;
     break-inside: avoid;
   }
   textarea[data-key] { display: none !important; }   /* the mirror prints instead */
   .print-only { display: block !important; min-height: 12mm; }
 
-  /* Compact rows so a full checklist fits alongside the four blocks. */
+  /* Compact rows so a full checklist fits under Notes. */
   #todo-list {
     overflow: visible !important;
     height: auto !important;

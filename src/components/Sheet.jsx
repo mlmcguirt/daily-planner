@@ -3,9 +3,11 @@ import { BLOCKS, MAX_TODO_ROWS, todayStr } from "../lib/day.js";
 import { DateHeader } from "./DateHeader.jsx";
 import { SelectionPill } from "./SelectionPill.jsx";
 
-const TITLES = { morning: "Morning", afternoon: "Afternoon", evening: "Evening", notes: "Notes" };
-// Weights, not fixed heights — this is what lets the whole sheet fit one screen.
-const WEIGHT = { morning: "1.15", afternoon: "1.35", evening: "1", notes: "0.9" };
+const TITLES = { notes: "Notes" };
+// Weights, not fixed heights — this is what lets the whole sheet fit one screen. Notes
+// takes about a sixth of the page; the checklist under
+// it takes the rest, which is what keeps all 17 rows on a 900px screen without scrolling.
+const WEIGHT = { notes: "0.2" };
 
 function Block({ name, value, onChange, onSelect }) {
   return (
@@ -164,7 +166,7 @@ function Checklist({ todos, onToggle, onText, onReorder, onSelect, onRowMenu, on
   }, [todos.length]);
 
   return (
-    <div class="relative min-h-0 rounded-md">
+    <div class="relative min-h-0 flex-[1_1_0] rounded-md max-md:flex-none">
       <ul ref={listRef} id="todo-list" class="m-0 flex h-full list-none flex-col overflow-y-auto p-0 max-md:overflow-visible">
         {todos.map((t, i) => (
           <li
@@ -275,7 +277,7 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
   //
   // A to-do carries the id on the row. Block text can't — it's prose — so it's matched
   // by content against the recurring items pointed at that box. Without this, a
-  // recurring line in Morning looked like ordinary text and the pill offered to make it
+  // recurring line in Notes looked like ordinary text and the pill offered to make it
   // recurring all over again.
   const ridFor = (where, text) => {
     if (where.kind === "todo") return day.todos[where.index]?.rid;
@@ -344,8 +346,8 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
 
   const makeRecurring = () => {
     if (!sel) return;
-    // It comes back where it came from: a to-do to the checklist, a line from Morning
-    // to Morning. The source travels with it so the row you highlighted BECOMES the
+    // It comes back where it came from: a to-do to the checklist, a line from Notes
+    // to Notes. The source travels with it so the row you highlighted BECOMES the
     // recurring one, rather than a copy of it appearing beside it.
     onMakeRecurring(
       sel.text.trim(),
@@ -386,12 +388,11 @@ export function Sheet({ date, onDateChange, day, onChange, recurring = [], onMak
     // `max-md:h-auto` that used to sit in this class list never once applied.
     <div class="sheet mx-[var(--border)] my-[var(--border)] flex flex-col overflow-hidden rounded-[10px] bg-paper px-4 pt-3.5 pb-3 shadow-[0_2px_14px_rgba(0,0,0,.10)] max-md:mt-0 max-md:overflow-visible max-md:pb-6">
       <DateHeader date={date} onDateChange={onDateChange} />
-      <div class="grid min-h-0 flex-1 grid-cols-2 gap-3.5 max-md:grid-cols-1">
-        <div class="flex min-h-0 flex-col gap-3">
-          {BLOCKS.map(name => (
-            <Block key={name} name={name} value={day.blocks[name] || ""} onChange={setBlock} onSelect={onSelect} />
-          ))}
-        </div>
+      {/* One column: Notes across the top, the checklist under it. */}
+      <div class="sheet-body flex min-h-0 flex-1 flex-col gap-3.5">
+        {BLOCKS.map(name => (
+          <Block key={name} name={name} value={day.blocks[name] || ""} onChange={setBlock} onSelect={onSelect} />
+        ))}
         <Checklist
           todos={day.todos}
           onToggle={(i, checked) => setTodo(i, { checked })}

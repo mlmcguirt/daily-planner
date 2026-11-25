@@ -2,7 +2,7 @@
 
 **A paper planner that syncs.**
 
-What you type appears in handwriting. The buttons live in the margin, never on the sheet. It prints landscape, on one page, because the point is that it becomes paper again. And underneath the paper is the part most planner apps get wrong: an outbox, per-date version tracking, and real conflict resolution — so an edit you make in a tunnel is still there when you come out of it.
+What you type appears in handwriting. The buttons live in the margin, never on the sheet. It prints on one page, because the point is that it becomes paper again. And underneath the paper is the part most planner apps get wrong: an outbox, per-date version tracking, and real conflict resolution — so an edit you make in a tunnel is still there when you come out of it.
 
 ### → [Try it](https://daily-planner-demo.pages.dev)
 
@@ -10,7 +10,7 @@ No signup, no passphrase, no database. Type on it. Reload it. It's yours until y
 
 ![The planner](docs/sheet.png)
 
-Print it and you get this. One page, landscape, no chrome:
+Print it and you get this. One page, no chrome:
 
 ![The printed page](docs/printed.png)
 
@@ -22,7 +22,7 @@ Print it and you get this. One page, landscape, no chrome:
 
 **Nothing is ever silently overwritten.** `updated_at` doubles as a version, tracked *per date* — a single global one goes stale the moment you change days while offline, and then invents conflicts for days nobody touched. A save carries the version it was based on. If your phone and your laptop both edited Tuesday, the server refuses the second one, hands back its copy, and the app asks you: **keep mine, or use theirs.** There's a nice subtlety in there: if the server's copy turns out to be *identical to what you just sent*, that isn't a conflict, it's a lost confirmation — so it resolves itself and says nothing.
 
-**Recurring items come back where they came from.** Make a to-do repeat on Tuesdays and it returns to the checklist. Make a line in *Morning* repeat and it returns to Morning. They carry a stable id so they can't duplicate, and merely opening a day never writes a row to the database.
+**Recurring items come back where they came from.** Make a to-do repeat on Tuesdays and it returns to the checklist. Make a line in *Notes* repeat and it returns to Notes. They carry a stable id so they can't duplicate, and merely opening a day never writes a row to the database.
 
 **The handwriting font is self-hosted on purpose.** A CDN font falls back to serif exactly when the app is offline — the one moment the illusion of paper would break.
 

@@ -46,7 +46,7 @@ const setDate = async (pg, ds) => {
   await pg.waitForTimeout(700);
 };
 const typeMorning = async (pg, text) => {
-  await pg.fill('textarea[data-key="morning"]', text);
+  await pg.fill('textarea[data-key="notes"]', text);
   await pg.waitForTimeout(1000);                       // 400ms debounce + request
 };
 const status = pg => pg.textContent("#status");
@@ -69,12 +69,12 @@ await page.waitForTimeout(800);
 await setDate(page, "2026-08-05");
 await typeMorning(page, "dentist at ten");
 let row = await api.get("2026-08-05");
-check("round-trip: typed text reaches D1", row.data?.blocks?.morning === "dentist at ten", JSON.stringify(row.data?.blocks?.morning));
+check("round-trip: typed text reaches D1", row.data?.blocks?.notes === "dentist at ten", JSON.stringify(row.data?.blocks?.notes));
 check("round-trip: status says Saved", (await status(page)).startsWith("Saved"), await status(page));
 
 // ---------- 2. look: handwriting only on typed content ----------
 const look = await page.evaluate(() => ({
-  textarea: getComputedStyle(document.querySelector('textarea[data-key="morning"]')).fontFamily,
+  textarea: getComputedStyle(document.querySelector('textarea[data-key="notes"]')).fontFamily,
   todo: getComputedStyle(document.querySelector("#todo-list li input[type=text]")).fontFamily,
   heading: getComputedStyle(document.querySelector("h2")).fontFamily,
   button: getComputedStyle(document.querySelector("#printBtn")).fontFamily,
@@ -126,7 +126,7 @@ check("offline: nothing on the server yet", (await api.get("2026-08-06")).data =
 await ctx.setOffline(false);
 await page.waitForTimeout(1800);
 check("reconnect: queued edit flushed to D1",
-  (await api.get("2026-08-06")).data?.blocks?.morning === "written while offline");
+  (await api.get("2026-08-06")).data?.blocks?.notes === "written while offline");
 check("reconnect: outbox drained", Object.keys(await outbox(page)).length === 0);
 
 // ---------- 5. an offline edit survives closing the tab ----------
@@ -140,42 +140,42 @@ page = await ctx.newPage();
 await page.goto(U);
 await page.waitForTimeout(2500);
 check("tab-close: edit still landed after reopen",
-  (await api.get("2026-08-07")).data?.blocks?.morning === "queued then tab closed");
+  (await api.get("2026-08-07")).data?.blocks?.notes === "queued then tab closed");
 
 // ---------- 6. two-device conflict ----------
 await ctx.setOffline(true);
 await setDate(page, "2026-08-08");
 await typeMorning(page, "my offline version");
-await api.put("2026-08-08", { day: 5, blocks: { morning: "their version" }, todos: [] });
+await api.put("2026-08-08", { day: 5, blocks: { notes: "their version" }, todos: [] });
 await ctx.setOffline(false);
 await page.waitForTimeout(2500);
 check("conflict: prompt appears instead of silent overwrite", await page.isVisible("#conflictOverlay"));
 check("conflict: shows their version", (await page.textContent("#theirsText")).includes("their version"));
 check("conflict: shows my version", (await page.textContent("#mineText")).includes("my offline version"));
 check("conflict: server NOT clobbered while unresolved",
-  (await api.get("2026-08-08")).data?.blocks?.morning === "their version");
+  (await api.get("2026-08-08")).data?.blocks?.notes === "their version");
 
 await page.click("#keepMine");
 await page.waitForTimeout(1800);
 check("conflict: 'keep mine' then wins",
-  (await api.get("2026-08-08")).data?.blocks?.morning === "my offline version");
+  (await api.get("2026-08-08")).data?.blocks?.notes === "my offline version");
 check("conflict: outbox drained after resolve", Object.keys(await outbox(page)).length === 0);
 
 // ---------- 7. conflict resolved the other way ----------
 await ctx.setOffline(true);
 await setDate(page, "2026-08-20");
 await typeMorning(page, "mine again");
-await api.put("2026-08-20", { day: 3, blocks: { morning: "theirs again" }, todos: [{ checked: false, text: "their todo" }] });
+await api.put("2026-08-20", { day: 3, blocks: { notes: "theirs again" }, todos: [{ checked: false, text: "their todo" }] });
 await ctx.setOffline(false);
 await page.waitForTimeout(2500);
 check("use-theirs: prompt shown", await page.isVisible("#conflictOverlay"));
 await page.click("#useTheirs");
 await page.waitForTimeout(1500);
 check("use-theirs: screen shows their version",
-  (await page.inputValue('textarea[data-key="morning"]')) === "theirs again");
+  (await page.inputValue('textarea[data-key="notes"]')) === "theirs again");
 check("use-theirs: their to-do is on screen", (await todoTexts(page)).includes("their todo"));
 check("use-theirs: server keeps their version",
-  (await api.get("2026-08-20")).data?.blocks?.morning === "theirs again");
+  (await api.get("2026-08-20")).data?.blocks?.notes === "theirs again");
 check("use-theirs: no stuck conflict", Object.keys(await outbox(page)).length === 0);
 
 // ---------- 8. carry over unfinished ----------
@@ -266,8 +266,8 @@ check("reorder: keyboard (arrow keys) moves a row too",
   JSON.stringify(await todoTexts(page)));
 
 // ---------- 11. stepping between days with the arrows ----------
-await api.put("2026-05-31", { day: 6, blocks: { morning: "last day of May" }, todos: [] });
-await api.put("2026-06-01", { day: 0, blocks: { morning: "first day of June" }, todos: [] });
+await api.put("2026-05-31", { day: 6, blocks: { notes: "last day of May" }, todos: [] });
+await api.put("2026-06-01", { day: 0, blocks: { notes: "first day of June" }, todos: [] });
 
 await setDate(page, "2026-06-01");
 await page.waitForTimeout(1200);
@@ -278,13 +278,13 @@ await page.click("#prevDay");
 await page.waitForTimeout(1500);
 check("arrows: back a day crosses the month boundary", (await dateNow()) === "2026-05-31", await dateNow());
 check("arrows: it loads that day's saved entries",
-  (await page.inputValue('textarea[data-key="morning"]')) === "last day of May");
+  (await page.inputValue('textarea[data-key="notes"]')) === "last day of May");
 
 await page.click("#nextDay");
 await page.waitForTimeout(1500);
 check("arrows: forward a day returns", (await dateNow()) === "2026-06-01", await dateNow());
 check("arrows: and loads its entries",
-  (await page.inputValue('textarea[data-key="morning"]')) === "first day of June");
+  (await page.inputValue('textarea[data-key="notes"]')) === "first day of June");
 
 check("arrows: the weekday marker follows",
   await page.evaluate(() => {
@@ -354,7 +354,7 @@ await page.waitForTimeout(1200);
 await api.recurring([]);
 await api.put("2026-04-06", {                      // a Monday
   day: 0,
-  blocks: { morning: "walk the dog and buy milk" },
+  blocks: { notes: "walk the dog and buy milk" },
   todos: [{ checked: false, text: "Take out the bins" }, { checked: false, text: "Keep me" }]
 });
 await page.reload();
@@ -362,9 +362,9 @@ await page.waitForTimeout(1500);
 await setDate(page, "2026-04-06");
 await page.waitForTimeout(1500);
 
-// Highlight " and buy milk" inside the Morning block.
+// Highlight " and buy milk" inside the Notes block.
 const full = "walk the dog and buy milk";
-await page.$eval('textarea[data-key="morning"]', (el, [from, to]) => {
+await page.$eval('textarea[data-key="notes"]', (el, [from, to]) => {
   el.focus();
   el.setSelectionRange(from, to);
   el.dispatchEvent(new Event("select", { bubbles: true }));
@@ -375,10 +375,10 @@ check("pill: appears when text in a block is highlighted", await page.isVisible(
 await page.click("#pillDelete");
 await page.waitForTimeout(1500);
 check("pill: Delete removes just the highlighted text",
-  (await page.inputValue('textarea[data-key="morning"]')) === "walk the dog",
-  await page.inputValue('textarea[data-key="morning"]'));
+  (await page.inputValue('textarea[data-key="notes"]')) === "walk the dog",
+  await page.inputValue('textarea[data-key="notes"]'));
 check("pill: the deletion is saved to D1",
-  (await api.get("2026-04-06")).data?.blocks?.morning === "walk the dog");
+  (await api.get("2026-04-06")).data?.blocks?.notes === "walk the dog");
 check("pill: disappears once the selection is gone", !(await page.isVisible("#selectionPill")));
 
 // Highlight a whole to-do and make it recurring.
@@ -468,14 +468,14 @@ await page.waitForTimeout(1200);
 
 // ---------- 15. a recurring block line comes back in its own block ----------
 await api.recurring([]);
-await api.put("2026-03-02", { day: 0, blocks: { morning: "Post office" }, todos: [] });   // Monday
+await api.put("2026-03-02", { day: 0, blocks: { notes: "Post office" }, todos: [] });   // Monday
 await page.reload();
 await page.waitForTimeout(1500);
 await setDate(page, "2026-03-02");
 await page.waitForTimeout(1500);
 
-// Highlight "Post office" in the Morning block and make it recurring.
-await page.$eval('textarea[data-key="morning"]', el => {
+// Highlight "Post office" in the Notes block and make it recurring.
+await page.$eval('textarea[data-key="notes"]', el => {
   el.focus();
   el.setSelectionRange(0, "Post office".length);
   el.dispatchEvent(new Event("select", { bubbles: true }));
@@ -483,25 +483,25 @@ await page.$eval('textarea[data-key="morning"]', el => {
 await page.waitForTimeout(400);
 await page.click("#pillRecurring");
 await page.waitForTimeout(600);
-check("block-recurring: the editor points it back at Morning",
+check("block-recurring: the editor points it back at Notes",
   await page.evaluate(() => {
     const row = [...document.querySelectorAll(".recur-row")]
       .find(r => r.querySelector("input[type=text]").value === "Post office");
-    return row.querySelector(".recur-target").value === "morning";
+    return row.querySelector(".recur-target").value === "notes";
   }));
 await page.click("#recurSave");
 await page.waitForTimeout(1800);
 
 const blockRec = (await fetch(`${U}/api/recurring`, { headers: H }).then(r => r.json())).items || [];
-check("block-recurring: saved with target=morning",
-  blockRec.some(i => i.text === "Post office" && i.target === "morning"), JSON.stringify(blockRec));
+check("block-recurring: saved with target=notes",
+  blockRec.some(i => i.text === "Post office" && i.target === "notes"), JSON.stringify(blockRec));
 
 // The following Monday: it must be IN Morning, and NOT a new to-do.
 await setDate(page, "2026-03-09");
 await page.waitForTimeout(1800);
-const nextMorning = await page.inputValue('textarea[data-key="morning"]');
+const nextMorning = await page.inputValue('textarea[data-key="notes"]');
 const nextTodos = await todoTexts(page);
-check("block-recurring: comes back inside the Morning box",
+check("block-recurring: comes back inside the Notes box",
   nextMorning.includes("Post office"), JSON.stringify(nextMorning));
 check("block-recurring: does NOT become a new to-do",
   !nextTodos.includes("Post office"), JSON.stringify(nextTodos));
@@ -510,20 +510,20 @@ check("block-recurring: does NOT become a new to-do",
 await setDate(page, "2026-03-10");
 await page.waitForTimeout(1500);
 check("block-recurring: absent on other weekdays",
-  !(await page.inputValue('textarea[data-key="morning"]')).includes("Post office"));
+  !(await page.inputValue('textarea[data-key="notes"]')).includes("Post office"));
 
 // And it must not pile up: revisit the same Monday, still one copy.
 await setDate(page, "2026-03-09");
 await page.waitForTimeout(1500);
-await page.fill('textarea[data-key="notes"]', "touch the day so it saves");
+await page.fill('#todo-list li:last-child input[type=text]', "touch the day so it saves");
 await page.waitForTimeout(1200);
 await setDate(page, "2026-03-10");
 await page.waitForTimeout(600);
 await setDate(page, "2026-03-09");
 await page.waitForTimeout(1800);
-const occurrences = (await page.inputValue('textarea[data-key="morning"]')).split("Post office").length - 1;
+const occurrences = (await page.inputValue('textarea[data-key="notes"]')).split("Post office").length - 1;
 check("block-recurring: no duplicate after save + reopen", occurrences === 1,
-  `${occurrences} copies: ${await page.inputValue('textarea[data-key="morning"]')}`);
+  `${occurrences} copies: ${await page.inputValue('textarea[data-key="notes"]')}`);
 
 await api.recurring([]);
 await page.reload();
@@ -562,32 +562,32 @@ check("pill: Edit opens the editor focused on THAT item, not the other one",
     return row?.dataset.id === "bins" && active.value === "Bins out";
   }));
 
-// Change it: rename, move it to Tuesday, and send it to the Evening box.
+// Change it: rename, move it to Tuesday, and send it to the Notes box.
 await page.fill('.recur-row[data-id="bins"] input[type=text]', "Bins out (green)");
 await page.click('.recur-row[data-id="bins"] button[data-wd="0"]');   // untick Monday
 await page.click('.recur-row[data-id="bins"] button[data-wd="1"]');   // tick Tuesday
-await page.selectOption('.recur-row[data-id="bins"] .recur-target', "evening");
+await page.selectOption('.recur-row[data-id="bins"] .recur-target', "notes");
 await page.click("#recurSave");
 await page.waitForTimeout(1800);
 
 const edited = (await fetch(`${U}/api/recurring`, { headers: H }).then(r => r.json())).items || [];
 const bins = edited.find(i => i.id === "bins");
 check("pill: the edit saved (text, weekday and box all changed)",
-  bins?.text === "Bins out (green)" && JSON.stringify(bins.weekdays) === "[1]" && bins.target === "evening",
+  bins?.text === "Bins out (green)" && JSON.stringify(bins.weekdays) === "[1]" && bins.target === "notes",
   JSON.stringify(bins));
 check("pill: editing one item didn't disturb the other",
   edited.some(i => i.id === "vits" && i.text === "Vitamins" && i.target === "todo"),
   JSON.stringify(edited));
 
-// It should now be gone from Monday's checklist and appear in Tuesday's Evening box.
+// It should now be gone from Monday's checklist and appear in Tuesday's Notes box.
 await page.waitForTimeout(800);
 check("pill: the edited item leaves Monday",
   !(await todoTexts(page)).includes("Bins out"), JSON.stringify(await todoTexts(page)));
 await setDate(page, "2026-04-28");                       // Tuesday
 await page.waitForTimeout(1800);
-check("pill: and lands in the Evening box on Tuesday",
-  (await page.inputValue('textarea[data-key="evening"]')).includes("Bins out (green)"),
-  await page.inputValue('textarea[data-key="evening"]'));
+check("pill: and lands in the Notes box on Tuesday",
+  (await page.inputValue('textarea[data-key="notes"]')).includes("Bins out (green)"),
+  await page.inputValue('textarea[data-key="notes"]'));
 
 await api.recurring([]);
 await page.reload();
@@ -597,7 +597,7 @@ await page.waitForTimeout(1200);
 await api.recurring([]);
 await api.put("2026-02-02", {                    // a Monday
   day: 0,
-  blocks: { morning: "Post office" },
+  blocks: { notes: "Post office" },
   todos: [{ checked: false, text: "Take out the bins" }]
 });
 await page.reload();
@@ -632,7 +632,7 @@ check("no-dupe: still one after a reload", (await countTodo("Take out the bins")
   JSON.stringify(await todoTexts(page)));
 
 // Same for a block line: making it recurring must not write it twice.
-await page.$eval('textarea[data-key="morning"]', el => {
+await page.$eval('textarea[data-key="notes"]', el => {
   el.focus();
   el.setSelectionRange(0, "Post office".length);
   el.dispatchEvent(new Event("select", { bubbles: true }));
@@ -642,7 +642,7 @@ await page.click("#pillRecurring");
 await page.waitForTimeout(600);
 await page.click("#recurSave");
 await page.waitForTimeout(2000);
-let morningNow = await page.inputValue('textarea[data-key="morning"]');
+let morningNow = await page.inputValue('textarea[data-key="notes"]');
 check("no-dupe: the block line isn't written twice",
   morningNow.split("Post office").length - 1 === 1, JSON.stringify(morningNow));
 
@@ -650,7 +650,7 @@ await page.reload();
 await page.waitForTimeout(1500);
 await setDate(page, "2026-02-02");
 await page.waitForTimeout(1800);
-morningNow = await page.inputValue('textarea[data-key="morning"]');
+morningNow = await page.inputValue('textarea[data-key="notes"]');
 check("no-dupe: block line still single after a reload",
   morningNow.split("Post office").length - 1 === 1, JSON.stringify(morningNow));
 
@@ -659,21 +659,21 @@ await setDate(page, "2026-02-09");
 await page.waitForTimeout(1800);
 check("no-dupe: it genuinely recurs next Monday",
   (await countTodo("Take out the bins")) === 1 &&
-  (await page.inputValue('textarea[data-key="morning"]')).includes("Post office"));
+  (await page.inputValue('textarea[data-key="notes"]')).includes("Post office"));
 
 await api.recurring([]);
 await page.reload();
 await page.waitForTimeout(1200);
 
 // ---------- 18. the pill recognises a recurring line in a BLOCK ----------
-await api.recurring([{ id: "postoffice", text: "Post office", weekdays: [0], target: "morning" }]);
-await api.put("2026-01-05", { day: 0, blocks: { morning: "Post office" }, todos: [] });   // Monday
+await api.recurring([{ id: "postoffice", text: "Post office", weekdays: [0], target: "notes" }]);
+await api.put("2026-01-05", { day: 0, blocks: { notes: "Post office" }, todos: [] });   // Monday
 await page.reload();
 await page.waitForTimeout(1500);
 await setDate(page, "2026-01-05");
 await page.waitForTimeout(1500);
 
-const pickInMorning = phrase => page.$eval('textarea[data-key="morning"]', (el, p) => {
+const pickInMorning = phrase => page.$eval('textarea[data-key="notes"]', (el, p) => {
   const at = el.value.indexOf(p);
   el.focus();
   el.setSelectionRange(at, at + p.length);
@@ -688,7 +688,7 @@ check("block-pill: and NOT 'Make recurring' (it already is)",
   !(await page.isVisible("#pillRecurring")));
 
 // Plain text in the same block still offers Make recurring.
-await page.fill('textarea[data-key="morning"]', "Post office\nBuy stamps");
+await page.fill('textarea[data-key="notes"]', "Post office\nBuy stamps");
 await page.waitForTimeout(1200);
 await pickInMorning("Buy stamps");
 await page.waitForTimeout(400);
@@ -719,15 +719,15 @@ check("block-pill: Delete recurring removes it from the list", afterDel.length =
 
 await setDate(page, "2026-01-12");                    // the following Monday
 await page.waitForTimeout(1800);
-check("block-pill: it no longer comes back in Morning",
-  !(await page.inputValue('textarea[data-key="morning"]')).includes("Post office"),
-  await page.inputValue('textarea[data-key="morning"]'));
+check("block-pill: it no longer comes back in Notes",
+  !(await page.inputValue('textarea[data-key="notes"]')).includes("Post office"),
+  await page.inputValue('textarea[data-key="notes"]'));
 
 await api.recurring([]);
 await page.reload();
 await page.waitForTimeout(1200);
 
-// ---------- 19. printing: landscape, one page, nothing lost ----------
+// ---------- 19. printing: portrait, one page, nothing lost ----------
 await api.recurring([]);
 await api.put("2026-01-19", {
   day: 0,
@@ -753,7 +753,7 @@ check("print: fits on a single page", pages === 1, `${pages} pages`);
 
 const box = raw.match(/\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/);
 const [w, h] = box ? [parseFloat(box[1]), parseFloat(box[2])] : [0, 0];
-check("print: landscape (wider than tall)", w > h, `${Math.round(w)}x${Math.round(h)}`);
+check("print: portrait (taller than wide), one column", h > w, `${Math.round(w)}x${Math.round(h)}`);
 
 // The chrome must not print, and the content must.
 await page.emulateMedia({ media: "print" });
@@ -794,8 +794,8 @@ await page.reload();
 await page.waitForTimeout(1200);
 
 // ---------- 20. clicking a weekday jumps within the week you're on ----------
-await api.put("2026-06-03", { day: 2, blocks: { morning: "Wednesday of that week" }, todos: [] });
-await api.put("2026-06-07", { day: 6, blocks: { morning: "Sunday of that week" }, todos: [] });
+await api.put("2026-06-03", { day: 2, blocks: { notes: "Wednesday of that week" }, todos: [] });
+await api.put("2026-06-07", { day: 6, blocks: { notes: "Sunday of that week" }, todos: [] });
 await page.reload();
 await page.waitForTimeout(1500);
 
@@ -810,14 +810,14 @@ await page.waitForTimeout(1500);
 check("weekdays: clicking W goes to Wednesday of THAT week", (await shownDate()) === "2026-06-03",
   await shownDate());
 check("weekdays: and loads that day's entries",
-  (await page.inputValue('textarea[data-key="morning"]')) === "Wednesday of that week");
+  (await page.inputValue('textarea[data-key="notes"]')) === "Wednesday of that week");
 
 await page.click('.days button[data-idx="6"]');   // S (Sunday)
 await page.waitForTimeout(1500);
 check("weekdays: clicking Sunday goes forward within the same week",
   (await shownDate()) === "2026-06-07", await shownDate());
 check("weekdays: and loads that day",
-  (await page.inputValue('textarea[data-key="morning"]')) === "Sunday of that week");
+  (await page.inputValue('textarea[data-key="notes"]')) === "Sunday of that week");
 
 check("weekdays: the clicked day is the one marked active",
   await page.evaluate(() =>
@@ -838,7 +838,7 @@ check("weekdays: clicking the current day stays put", (await shownDate()) === "2
   await shownDate());
 
 // ---------- 21. week arrows ----------
-await api.put("2026-06-10", { day: 2, blocks: { morning: "the next Wednesday" }, todos: [] });
+await api.put("2026-06-10", { day: 2, blocks: { notes: "the next Wednesday" }, todos: [] });
 await page.reload();
 await page.waitForTimeout(1500);
 await setDate(page, "2026-06-03");              // Wednesday 3 June
@@ -849,7 +849,7 @@ await page.waitForTimeout(1500);
 check("weeks: next week keeps the weekday (Wed -> Wed)", (await shownDate()) === "2026-06-10",
   await shownDate());
 check("weeks: and loads that day",
-  (await page.inputValue('textarea[data-key="morning"]')) === "the next Wednesday");
+  (await page.inputValue('textarea[data-key="notes"]')) === "the next Wednesday");
 check("weeks: the marker still says Wednesday",
   await page.evaluate(() =>
     [...document.querySelectorAll(".days button[data-idx]")].findIndex(b => b.getAttribute("aria-current") === "date") === 2));
@@ -887,7 +887,7 @@ await page.unroute("**/api/day**");
 await page.click("#retryBtn");
 await page.waitForTimeout(2000);
 check("failure: Retry saves once the server is back",
-  (await api.get("2026-10-01")).data?.blocks?.morning === "server is broken");
+  (await api.get("2026-10-01")).data?.blocks?.notes === "server is broken");
 
 // ---------- 23. Enter goes down a line ----------
 // Each to-do row is its own <input>, so Enter used to do nothing at all — you had to
@@ -971,8 +971,8 @@ check("enter: the extra line is saved", grown[17]?.text === "and another",
 
 // A day whose text contains a literal "%", and a day that would be a FALSE hit if the
 // query's "%" were treated as a SQL wildcard: LIKE '%a%c%' matches "abc".
-await api.put("2026-05-11", { day: 0, blocks: { morning: "took a%c to the vet" }, todos: [], applied: [] });
-await api.put("2026-05-12", { day: 1, blocks: { morning: "abc reading group" }, todos: [], applied: [] });
+await api.put("2026-05-11", { day: 0, blocks: { notes: "took a%c to the vet" }, todos: [], applied: [] });
+await api.put("2026-05-12", { day: 1, blocks: { notes: "abc reading group" }, todos: [], applied: [] });
 
 const hits = await api.search("a%c");
 const dates = hits.results?.map(r => r.date) || [];
@@ -1036,19 +1036,19 @@ page.once("dialog", d => d.accept());                                      // th
 await page.click("#clearBtn");
 await page.waitForTimeout(1200);
 check("undo: Clear empties the sheet",
-  (await page.inputValue('textarea[data-key="morning"]')) === "" && (await todoTexts(page)).length === 0,
+  (await page.inputValue('textarea[data-key="notes"]')) === "" && (await todoTexts(page)).length === 0,
   JSON.stringify(await todoTexts(page)));
-check("undo: Clear reaches the server", !(await api.get("2026-11-05")).data?.blocks?.morning,
+check("undo: Clear reaches the server", !(await api.get("2026-11-05")).data?.blocks?.notes,
   JSON.stringify((await api.get("2026-11-05")).data?.blocks));
 check("undo: the Undo offer appears", await page.isVisible("#undoClearBtn"));
 
 await page.click("#undoClearBtn");
 await page.waitForTimeout(1200);
 check("undo: it brings the cleared day back on screen",
-  (await page.inputValue('textarea[data-key="morning"]')) === "hold onto this"
+  (await page.inputValue('textarea[data-key="notes"]')) === "hold onto this"
     && (await todoTexts(page)).includes("and this too"), JSON.stringify(await todoTexts(page)));
 check("undo: and restores it on the server too",
-  (await api.get("2026-11-05")).data?.blocks?.morning === "hold onto this",
+  (await api.get("2026-11-05")).data?.blocks?.notes === "hold onto this",
   JSON.stringify((await api.get("2026-11-05")).data?.blocks));
 check("undo: the offer clears once taken", !(await page.isVisible("#undoClearBtn")));
 
@@ -1127,7 +1127,7 @@ await api.recurring([]);
 // one guard against losing everything. "Back up" pulls the whole planner via /api/export
 // (straight from D1) and saves it as dated, human-readable JSON.
 await api.put("2026-12-25", {
-  day: 4, blocks: { morning: "back up this day" },
+  day: 4, blocks: { notes: "back up this day" },
   todos: [{ checked: true, text: "wrap presents" }], applied: []
 });
 await api.recurring([{ id: "exp-r", text: "backup recurring", weekdays: [2] }]);
@@ -1146,7 +1146,7 @@ check("export: the filename is dated", download.suggestedFilename().startsWith("
   download.suggestedFilename());
 const xday = dump.days.find(d => d.date === "2026-12-25");
 check("export: it contains a day you wrote, in full",
-  !!xday && xday.data?.blocks?.morning === "back up this day" && xday.data?.todos?.[0]?.text === "wrap presents",
+  !!xday && xday.data?.blocks?.notes === "back up this day" && xday.data?.todos?.[0]?.text === "wrap presents",
   JSON.stringify(xday?.data));
 check("export: it contains the recurring list",
   dump.recurring.some(r => r.id === "exp-r" && Array.isArray(r.weekdays) && r.weekdays.includes(2)),
@@ -1219,7 +1219,7 @@ await api.recurring([]);
 // sticky on a phone: the two must not overlap, and the strip has to be opaque or the
 // checklist shows through it.
 await api.put("2026-02-18", {
-  day: 2, blocks: { morning: "gym, then dentist", afternoon: "school run", evening: "read", notes: "milk" },
+  day: 2, blocks: { notes: "gym, then dentist\nmilk" },
   todos: Array.from({ length: 8 }, (_, i) => ({ checked: false, text: `line ${i + 1}` }))
 });
 await page.setViewportSize({ width: 390, height: 700 });
@@ -1313,6 +1313,30 @@ await page.waitForTimeout(300);
 check("today-dot: not printed",
   (await page.$eval(".today-dot", el => getComputedStyle(el).display)) === "none");
 await page.emulateMedia({ media: null });
+
+// ---------- 33. Notes and the checklist only ----------
+// Morning, Afternoon and Evening are gone from the sheet. Notes sits across the top and
+// the checklist runs under it.
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.reload();
+await page.waitForTimeout(1500);
+const only = await page.evaluate(() => ({
+  boxes: [...document.querySelectorAll("textarea[data-key]")].map(t => t.dataset.key),
+  notesBottom: document.getElementById("notes").getBoundingClientRect().bottom,
+  listTop: document.getElementById("todo-list").getBoundingClientRect().top
+}));
+check("one-column: Notes is the only box", JSON.stringify(only.boxes) === '["notes"]', JSON.stringify(only.boxes));
+check("one-column: the checklist sits under Notes", only.listTop >= only.notesBottom, JSON.stringify(only));
+
+// An old recurring item pointed at Morning must not vanish: it comes back as a to-do.
+await api.recurring([{ id: "oldmorning", text: "Old morning habit", weekdays: [0], target: "morning" }]);
+await page.reload();
+await page.waitForTimeout(1500);
+await setDate(page, "2026-03-16");                 // a Monday
+await page.waitForTimeout(1500);
+check("one-column: an old Morning recurring item lands on the checklist",
+  (await todoTexts(page)).includes("Old morning habit"), JSON.stringify(await todoTexts(page)));
+await api.recurring([]);
 
 await browser.close();
 

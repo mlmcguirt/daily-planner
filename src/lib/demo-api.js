@@ -73,10 +73,7 @@ const json = (body, status = 200) =>
 const seedFor = offset => {
   if (offset === 0) return {
     blocks: {
-      morning: "Draft the Q3 letter\nCall the dentist back",
-      afternoon: "Review the lease redlines\nCoffee with Sam, 4pm",
-      evening: "Pick up the dry cleaning\nDinner with Ruth, 7:30",
-      notes: "The good pens are in the second drawer"
+      notes: "Call the dentist back\nCoffee with Sam, 4pm\nThe good pens are in the second drawer"
     },
     todos: [
       { checked: false, text: "Book the flights" },
@@ -89,14 +86,14 @@ const seedFor = offset => {
     ]
   };
   if (offset === -1) return {
-    blocks: { morning: "Team standup", afternoon: "", evening: "", notes: "" },
+    blocks: { notes: "Team standup" },
     todos: [
       { checked: true, text: "Send the invoice" },
       { checked: false, text: "Chase the plumber" }
     ]
   };
   return {
-    blocks: { morning: "Train to Leeds, 8:04", afternoon: "", evening: "", notes: "" },
+    blocks: { notes: "Train to Leeds, 8:04" },
     todos: [{ checked: false, text: "Print the tickets" }]
   };
 };
@@ -112,7 +109,7 @@ const buildDay = (date, weekday, offset) => {
   const s = seedFor(offset);
   return {
     day: weekday,
-    blocks: { morning: "", afternoon: "", evening: "", notes: "", ...s.blocks },
+    blocks: { notes: "", ...s.blocks },
     todos: s.todos,
     applied: []
   };

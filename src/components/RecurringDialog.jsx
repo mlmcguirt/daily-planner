@@ -1,14 +1,11 @@
 import { useState, useEffect, useRef } from "preact/hooks";
-import { DAY_LABELS } from "../lib/day.js";
+import { DAY_LABELS, targetOf } from "../lib/day.js";
 
 const newId = () => `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 // Where a recurring item comes back — the checklist, or the box it was written in.
 const TARGETS = [
   ["todo", "the to-do list"],
-  ["morning", "Morning"],
-  ["afternoon", "Afternoon"],
-  ["evening", "Evening"],
   ["notes", "Notes"]
 ];
 
@@ -26,7 +23,7 @@ export function RecurringDialog({ items, sync, onSaved, onClose, prefill, focusI
   // already pointed at the box it came from.
   const [rows, setRows] = useState(() =>
     withBlank([
-      ...items.map(i => ({ target: "todo", ...i })),
+      ...items.map(i => ({ ...i, target: targetOf(i) })),
       // prefill.id is minted by the caller: the row you highlighted needs to know which
       // recurring item it just became.
       ...(prefill
